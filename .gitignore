@@ -1,3 +1,6 @@
 /.idea
-.gitignore
+/.gitignore
 /setup.py
+/build
+/dist
+/nonebot_plugin_bili_push.egg-info

@@ -8,7 +8,7 @@
 
 # nonebot-plugin-bili-push
  B订阅推送插件 
-
+</div>
 ## 示例
 
 ![输入图片描述](README_md_files/9cf89890-0952-11ee-8733-25d9c7397331.jpeg?v=1&type=image)
