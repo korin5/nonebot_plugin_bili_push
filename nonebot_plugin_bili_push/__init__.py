@@ -29,15 +29,48 @@ config = nonebot.get_driver().config
 # 该目录是存放插件数据的目录，参考如下：
 # bilipush_basepath="./"
 # bilipush_basepath="C:/"
+#
+# 配置3：
+# api地址
+# 配置api地址，如未填写则使用默认地址，参考如下：
+# bilipush_apiurl="http://cdn.kanon.ink"
+#
+# 配置4：
+# 是否使用api来获取emoji图像
+# 为True时使用api，为False时不使用api，为空时自动选择。
+# bilipush_emojiapi=True
+#
+
+# 配置1：
 try:
     adminqq = config.superusers
     adminqq = list(adminqq)
 except:
     adminqq = []
+# 配置2：
 try:
     basepath = config.bilipush_basepath
 except:
     basepath = "./"
+# 配置3：
+try:
+    apiurl = config.bilipush_apiurl
+except:
+    apiurl = "http://cdn.kanon.ink"
+# 配置4：
+try:
+    use_api = config.bilipush_emojiapi
+except:
+    try:
+        get_url = apiurl + "/json/config?name=ping"
+        return_json = json.loads(requests.get(get_url).text)
+        if return_json["code"] == 0:
+            use_api = True
+        else:
+            use_api = False
+    except:
+        use_api = False
+
 
 __plugin_meta__ = PluginMetadata(
     name="bili_push",
@@ -70,7 +103,6 @@ half_text = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N
              "q", "r", "s", "t", "u", "v", "w", "x", "y", "z", "1", "2", "3", "4", "5", "6", "7", "8", "9", "0", ",",
              ".", "/", "\\", "[", "]", "(", ")", "!", "+", "-", "*", "！", "？", "。", "，", "{", "}", "、", "‘", "“",
              '"', "'", "！", " "]
-url = "cdn.kanon.ink/api/image"
 
 
 def get_emoji(emoji):
@@ -79,24 +111,34 @@ def get_emoji(emoji):
         os.makedirs(cachepath)
     cachepath = cachepath + emoji + ".png"
     if not cachepath.exists():
-        url = "http://cdn.kanon.ink/api/emoji?imageid=" + emoji
-        try:
-            return_image = requests.get(url)
-            return_image = Image.open(BytesIO(return_image.content))
-            return_image.save(cachepath)
-        except:
-            print("api出错，请联系开发者")
-            # api出错时返回空图
-            return_image = Image.new("RGBA", (100, 100), color=(0, 0, 0, 100))
+        if use_api:
+            url = apiurl + "/api/emoji?imageid=" + emoji
+            try:
+                return_image = requests.get(url)
+                return_image = Image.open(BytesIO(return_image.content))
+                return_image.save(cachepath)
+            except:
+                print("api出错，请联系开发者")
+                # api出错时直接打印文字
+                return_image = Image.new("RGBA", (100, 100), color=(0, 0, 0, 0))
+                paste_image = draw_text(emoji, 100, 10)
+                return_image.paste(paste_image, (0, 0), mask=paste_image)
+        else:
+            # 不使用api，直接打印文字
+            return_image = Image.new("RGBA", (100, 100), color=(0, 0, 0, 0))
+            paste_image = draw_text(emoji, 100, 10)
+            return_image.paste(paste_image, (0, 0), mask=paste_image)
     else:
         return_image = Image.open("r", cachepath)
     return return_image
 
 
 def is_emoji(emoji):
-    url = "http://cdn.kanon.ink/json/emoji?imageid=" + emoji
+    if use_api:
+        return False
+    get_url = apiurl + "/json/emoji?imageid=" + emoji
     try:
-        return_json = json.loads(requests.get(url).text)
+        return_json = json.loads(requests.get(get_url).text)
         if return_json["code"] == 0:
             return True
         else:
@@ -414,23 +456,16 @@ def get_draw(data):
     returnpath = ""
     run = 'on'  # 代码折叠
     if run == 'on':
-        print('---开始获取数据----------')
+        print('bili-push_开始获取数据')
         biliname = str(data["desc"]["user_profile"]["info"]["uname"])
-        print('biliname:' + biliname)
         biliface = str(data["desc"]["user_profile"]["info"]["face"])
-        print('biliface:' + biliface)
         biliface_round = str(data["desc"]["user_profile"]["pendant"]["image"])
-        print('biliface_round:' + biliface_round)
         dynamicid = str(data["desc"]["dynamic_id"])
-        print('dynamicid:' + dynamicid)
         timestamp = str(data["desc"]["timestamp"])
-        print('timestamp:' + timestamp)
         timestamp = int(timestamp)
         timestamp = time.localtime(timestamp)
         timestamp = time.strftime("%Y年%m月%d日 %H:%M:%S", timestamp)
-        print('timestamp:' + timestamp)
         bilitype = data["desc"]["type"]
-        print('bilitype:' + str(bilitype))
         bilidata = data["card"]
         bilidata = json.loads(bilidata)
         try:
@@ -444,46 +479,26 @@ def get_draw(data):
 
         # 转发动态
         if bilitype == 1:
-            print('转发动态')
             card_message = bilidata["item"]["content"]
-            print('card_message:' + str(card_message))
             origin_data = bilidata["origin"]
             origin_data = json.loads(origin_data)
-            print('转发内容:')
-
             origin_type = bilidata["item"]["orig_type"]
-            print('origin_type:' + str(origin_type))
-
             try:
                 origin_emoji_infos = data["display"]["origin"]["emoji_info"]["emoji_details"]
             except:
                 origin_emoji_infos = []
 
-            # 测试用
-            # origin_type = 0
-            # code = 1
-            # returnpath = "暂不支持动态类型"
-
             # 投稿视频
             if origin_type == 8:
-                print(str(origin_data))
-                print('转发的是视频')
                 origin_biliname = origin_data["owner"]["name"]
-                print('origin_biliname:' + str(origin_biliname))
                 origin_biliface = origin_data["owner"]["face"]
-                print('origin_biliface:' + str(origin_biliface))
                 origin_timestamp = origin_data["ctime"]
                 origin_timestamp = time.localtime(origin_timestamp)
                 origin_timestamp = time.strftime("%Y年%m月%d日 %H:%M:%S", origin_timestamp)
-                print('origin_timestamp:' + origin_timestamp)
                 origin_title = origin_data["title"]
-                print('origin_title:' + str(origin_title))
                 origin_message = origin_data["desc"]
-                print('origin_message:' + str(origin_message))
                 origin_video_image = origin_data["pic"]
-                print('origin_video_image:' + str(origin_video_image))
-
-                print("开始绘图")
+                print("bili-push_开始绘图")
                 if runcode == 1:
                     fortsize = 30
                     font = ImageFont.truetype(font=fontfile, size=fortsize)
@@ -755,42 +770,31 @@ def get_draw(data):
                                                          (int(x + print_x * fortsize), int(y + print_y * fortsize)))
 
                     returnpath = cachepath + 'bili动态/'
-                    if os.path.exists(returnpath):
-                        print("已存在目录")
-                    else:
+                    if not os.path.exists(returnpath):
                         os.makedirs(returnpath)
                     returnpath = returnpath + date + '_' + timenow + '_' + qq + '.png'
                     draw_image.save(returnpath)
-                    print("returnpath" + returnpath)
-                    print("运行bilinew成功")
+                    print("bili-push_绘图成功")
                     code = 2
 
             # 图文动态
             elif origin_type == 2:
-                print(str(origin_data))
-                print('转发的是图文动态')
                 origin_biliname = origin_data["user"]["name"]
-                print('origin_biliname:' + str(origin_biliname))
                 origin_biliface = origin_data["user"]["head_url"]
-                print('origin_biliface:' + str(origin_biliface))
                 origin_timestamp = origin_data["item"]["upload_time"]
                 origin_timestamp = time.localtime(origin_timestamp)
                 origin_timestamp = time.strftime("%Y年%m月%d日 %H:%M:%S", origin_timestamp)
-                print('origin_timestamp:' + origin_timestamp)
                 origin_message = origin_data["item"]["description"]
-                print('origin_message:' + str(origin_message))
                 origin_images = origin_data["item"]["pictures"]
                 images = []
                 for origin_image in origin_images:
                     image_url = origin_image["img_src"]
-                    print('image_url:' + str(image_url))
                     images.append(image_url)
                 try:
                     emoji_infos = data["display"]["emoji_info"]["emoji_details"]
                 except:
                     emoji_infos = []
-
-                print("开始绘图")
+                print("bili-push_开始绘图")
                 if runcode == 1:
                     fortsize = 30
                     font = ImageFont.truetype(font=fontfile, size=fortsize)
@@ -982,26 +986,18 @@ def get_draw(data):
                         os.makedirs(returnpath)
                     returnpath = returnpath + date + '_' + timenow + '_' + qq + '.png'
                     draw_image.save(returnpath)
-                    print("returnpath" + returnpath)
-                    print("运行bilinew成功")
+                    print("bili-push_绘图成功")
                     code = 2
 
             # 文字动态
             elif origin_type == 4:
-                print(str(origin_data))
-                print('转发的是文字动态')
                 origin_biliname = origin_data["user"]["uname"]
-                print('origin_biliname:' + str(origin_biliname))
                 origin_biliface = origin_data["user"]["face"]
-                print('origin_biliface:' + str(origin_biliface))
                 origin_timestamp = origin_data["item"]["timestamp"]
                 origin_timestamp = time.localtime(origin_timestamp)
                 origin_timestamp = time.strftime("%Y年%m月%d日 %H:%M:%S", origin_timestamp)
-                print('origin_timestamp:' + origin_timestamp)
                 origin_message = origin_data["item"]["content"]
-                print('origin_message:' + str(origin_message))
-
-                print("开始绘图")
+                print("bili-push_开始绘图")
                 if runcode == 1:
                     fortsize = 30
                     font = ImageFont.truetype(font=fontfile, size=fortsize)
@@ -1105,36 +1101,27 @@ def get_draw(data):
                     draw_image.paste(paste_image, (x, y), mask=paste_image)
 
                     returnpath = cachepath + 'bili动态/'
-                    if os.path.exists(returnpath):
-                        print("已存在目录")
-                    else:
+                    if not os.path.exists(returnpath):
                         os.makedirs(returnpath)
                     returnpath = returnpath + date + '_' + timenow + '_' + qq + '.png'
                     draw_image.save(returnpath)
-                    print("returnpath" + returnpath)
-                    print("运行bilinew成功")
+                    print("bili-push_绘图成功")
                     code = 2
-
         # 图文动态
         elif bilitype == 2:
-            print('图文动态')
             card_message = bilidata["item"]["description"]
-            print('card_message:' + str(card_message))
             card_images = bilidata["item"]["pictures"]
             images = []
             for card_image in card_images:
                 image_url = card_image["img_src"]
-                print('image_url:' + str(image_url))
                 images.append(image_url)
             try:
                 emoji_infos = data["display"]["emoji_info"]["emoji_details"]
             except:
                 emoji_infos = []
 
-            if runcode == 1:
-                runcode = 0
-                print("开始绘图")
-
+            if runcode == 1:  # 代码折叠
+                print("bili-push_开始绘图")
                 # 计算图片长度
                 image_x = 900
                 image_y = 140  # add base y
@@ -1264,24 +1251,19 @@ def get_draw(data):
                     os.makedirs(returnpath)
                 returnpath = returnpath + date + '_' + timenow + '_' + qq + '.png'
                 draw_image.save(returnpath)
-                print("returnpath" + returnpath)
-                print("运行bilinew成功")
+                print("bili-push_绘图成功")
                 code = 2
 
         # 文字动态
         elif bilitype == 4:
-            print('文字动态')
-
             card_message = bilidata["item"]["content"]
-            print('card_message:' + str(card_message))
             try:
                 emoji_infos = data["display"]["emoji_info"]["emoji_details"]
             except:
                 emoji_infos = []
 
             if runcode == 1:
-                runcode = 0
-                print("开始绘图")
+                print("bili-push_开始绘图")
                 fortsize = 30
                 font = ImageFont.truetype(font=fontfile, size=fortsize)
 
@@ -1331,28 +1313,19 @@ def get_draw(data):
 
 
                 returnpath = cachepath + 'bili动态/'
-                if os.path.exists(returnpath):
-                    print("已存在目录")
-                else:
+                if not os.path.exists(returnpath):
                     os.makedirs(returnpath)
                 returnpath = returnpath + date + '_' + timenow + '_' + qq + '.png'
                 draw_image.save(returnpath)
-                print("returnpath" + returnpath)
-                print("运行bilinew成功")
+                print("bili-push_绘图成功")
                 code = 2
 
         # 投稿视频
         elif bilitype == 8:
-            print('投稿视频')
-            print(str(bilidata))
             card_message = bilidata["dynamic"]
-            print('card_message:' + str(card_message))
             card_title = bilidata["title"]
-            print('card_title:' + str(card_title))
             card_vmessage = bilidata["desc"]
-            print('card_vmessage:' + str(card_vmessage))
             card_image = bilidata["pic"]
-            print('card_image:' + str(card_image))
             try:
                 emoji_infos = data["display"]["emoji_info"]["emoji_details"]
             except:
@@ -1427,7 +1400,6 @@ def get_draw(data):
                                 jump_num = len(emoji_code) - 1
                                 testnum = 60
                         if emoji_code != "":
-                            print(emoji_code)
                             # 粘贴biliemoji
                             for emoji_info in emoji_infos:
                                 emoji_name = emoji_info["emoji_name"]
@@ -1519,7 +1491,6 @@ def get_draw(data):
                                 jump_num = len(emoji_code) - 1
                                 testnum = 60
                         if emoji_code != "":
-                            print(emoji_code)
                             # 粘贴biliemoji
                             for emoji_info in emoji_infos:
                                 emoji_name = emoji_info["emoji_name"]
@@ -1598,7 +1569,6 @@ def get_draw(data):
                                 jump_num = len(emoji_code) - 1
                                 testnum = 60
                         if emoji_code != "":
-                            print(emoji_code)
                             # 粘贴biliemoji
                             for emoji_info in emoji_infos:
                                 emoji_name = emoji_info["emoji_name"]
@@ -1633,14 +1603,11 @@ def get_draw(data):
                                              (int(x + print_x * fortsize), int(y + print_y * fortsize)))
 
             returnpath = cachepath + 'bili动态/'
-            if os.path.exists(returnpath):
-                print("已存在目录")
-            else:
+            if not os.path.exists(returnpath):
                 os.makedirs(returnpath)
             returnpath = returnpath + date + '_' + timenow + '_' + qq + '.png'
             draw_image.save(returnpath)
-            print("returnpath" + returnpath)
-            print("运行bilinew成功")
+            print("bili-push_绘图成功")
             code = 2
         print('---结束获取数据----------')
     return [code, returnpath]
@@ -1651,7 +1618,7 @@ get_new = on_command("最新动态", aliases={'添加订阅', '删除订阅', '�
 
 @get_new.handle()
 async def _(bot: Bot, messageevent: MessageEvent):
-    print("rubilibili_push")
+    print("bili-push_command")
     returnpath = ""
     code = 0
     qq = int(messageevent.get_user_id())
@@ -1660,7 +1627,6 @@ async def _(bot: Bot, messageevent: MessageEvent):
     commands = get_commands(message)
     command = str(commands[0])
     command = command.removeprefix("/")
-    print(command)
     if len(commands) >= 2:
         command2 = commands[1]
     else:
