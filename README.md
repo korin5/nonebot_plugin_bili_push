@@ -45,6 +45,16 @@
 插件数据存放位置，默认为 “./”。
 
     bilipush_basepath="./"
+
+刷新间隔：每次刷新间隔多少分钟，默认为12分钟。
+
+    bilipush_waittime=12
+
+发送间隔： 每次发送完成后等待的时间，单位秒，默认10-30秒。
+时间为设置的时间再加上随机延迟10-20秒
+
+    bilipush_sleeptime=10
+
 ## 参考内容
 Mirai动态绘制插件 [BilibiliDynamic MiraiPlugin](https://github.com/Colter23/bilibili-dynamic-mirai-plugin)
 

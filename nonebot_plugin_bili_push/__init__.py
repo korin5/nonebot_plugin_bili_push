@@ -18,6 +18,7 @@ from nonebot_plugin_apscheduler import scheduler
 
 config = nonebot.get_driver().config
 # 读取配置
+# -》无需修改代码文件，请在“.env”文件中改。《-
 #
 # 配置1：
 # 管理员账号SUPERUSERS
@@ -40,6 +41,17 @@ config = nonebot.get_driver().config
 # 为True时使用api，为False时不使用api，为空时自动选择。
 # bilipush_emojiapi=True
 #
+# 配置5：
+# 刷新间隔
+# 每次刷新间隔多少分钟，默认为12分钟。
+# bilipush_waittime=12
+#
+# 配置6：
+# 发送间隔
+# 每次发送完成后等待的时间，单位秒，默认10-30秒。
+# 时间为设置的时间再加上随机延迟10-20秒
+# bilipush_sleeptime=10
+#
 
 # 配置1：
 try:
@@ -50,8 +62,10 @@ except:
 # 配置2：
 try:
     basepath = config.bilipush_basepath
+    if basepath.startswith("./"):
+        basepath = os.path.abspath('.') + "/" + basepath.removeprefix(".")
 except:
-    basepath = "./"
+    basepath = os.path.abspath('.') + "/"
 # 配置3：
 try:
     apiurl = config.bilipush_apiurl
@@ -70,6 +84,16 @@ except:
             use_api = False
     except:
         use_api = False
+# 配置5：
+try:
+    waittime = str(config.bilipush_waittime)
+except:
+    waittime = "12"
+# 配置6：
+try:
+    sleeptime = int(config.bilipush_sleeptime)
+except:
+    sleeptime = 10
 
 
 __plugin_meta__ = PluginMetadata(
@@ -136,7 +160,7 @@ def get_emoji(emoji):
             paste_image = draw_text(emoji, 100, 10)
             return_image.paste(paste_image, (0, 0), mask=paste_image)
     else:
-        return_image = Image.open("r", cachepath)
+        return_image = Image.open(cachepath, mode="r")
     return return_image
 
 
@@ -444,6 +468,8 @@ def get_draw(data):
     time_s = str(time.strftime("%S", time.localtime()))
     timeshort = time_h + time_m + time_s
     cachepath = basepath + "local-ImgCache/" + date_year + '/' + date_month + '/' + date_day + '/'
+    if not os.path.exists(cachepath):
+        os.makedirs(cachepath)
 
     qq = str(random.randint(10000, 99999))
     addimage = ""
@@ -1089,6 +1115,7 @@ def get_draw(data):
                     draw_image.save(returnpath)
                     print("bili-push_绘图成功")
                     code = 2
+
         # 图文动态
         elif bilitype == 2:
             card_message = bilidata["item"]["description"]
@@ -1751,7 +1778,6 @@ async def _(bot: Bot, messageevent: MessageEvent):
                             conn.close()
                         except:
                             print()
-
                         conn = sqlite3.connect(livedb)
                         cursor = conn.cursor()
                         for return_data in return_datas:
@@ -1864,8 +1890,10 @@ async def _(bot: Bot, messageevent: MessageEvent):
     else:
         await get_new.finish()
 
+minute = "*/" + waittime
 
-@scheduler.scheduled_job("cron", minute="*/12", id="job_0")
+
+@scheduler.scheduled_job("cron", minute=minute, id="job_0")
 async def run_every_6_minute():
     print("run bili push find")
     # ############获取动态更新，并绘制############
@@ -2144,7 +2172,7 @@ async def run_every_6_minute():
                     returnpath = data[2]
                     msg = MessageSegment.image(r"file:///" + returnpath)
 
-                    sleeptime = random.randint(100, 500) / 10
+                    stime = random.randint(1, 200) / 10 + sleeptime
 
                     if "p" in groupcode:
                         send_qq = groupcode.removeprefix("gp")
@@ -2163,7 +2191,7 @@ async def run_every_6_minute():
                             except:
                                 print('私聊内容发送失败：send_qq：' + str(send_qq) + ",message:"
                                       + message + ",retrnpath:" + returnpath)
-                            time.sleep(sleeptime)
+                            time.sleep(stime)
                         else:
                             print("bot未入群")
 
@@ -2188,7 +2216,7 @@ async def run_every_6_minute():
                                 print(
                                     '群聊内容发送失败：groupcode：' + str(send_groupcode) + ",message:"
                                     + message + ",retrnpath:" + returnpath)
-                            time.sleep(sleeptime)
+                            time.sleep(stime)
                         else:
                             print("bot未入群")
 
