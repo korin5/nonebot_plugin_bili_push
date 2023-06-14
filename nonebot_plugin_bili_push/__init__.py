@@ -87,17 +87,11 @@ __plugin_meta__ = PluginMetadata(
 
 # 创建基础参数
 returnpath = ""
-dbpath = basepath + 'botsdb/'
-configpart = dbpath + 'config/'
-fontdb = configpart + 'font.db'
-livedb = dbpath + "live/Kanon_push.db"
-emojidbname = dbpath + 'emoji/emoji.db'
-dbpath = basepath + 'botsdb/'
-pushlistdb = dbpath + "live/push_list.db"
-livelistdb = dbpath + "live/livelist.db"
-heartdb = basepath + 'local-ImgCache/heart.db'
-configpart = dbpath + 'config/'
-groupconfigdb = configpart + 'groupconfig.db'
+plugin_dbpath = basepath + 'db/bili_push/'
+if not os.path.exists(plugin_dbpath):
+    os.makedirs(plugin_dbpath)
+livedb = plugin_dbpath + "bili_push.db"
+heartdb = plugin_dbpath + "heart.db"
 half_text = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U",
              "V", "W", "X", "Y", "Z", "a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "p",
              "q", "r", "s", "t", "u", "v", "w", "x", "y", "z", "1", "2", "3", "4", "5", "6", "7", "8", "9", "0", ",",
@@ -356,21 +350,10 @@ def draw_text(text: str,
                             emoji_url = emoji_info["url"]
                             x_num += 1
             if biliemoji_name == "":
-                conn = sqlite3.connect(emojidbname)
-                cursor = conn.cursor()
-                cursor.execute('select * from emoji where emoji = "' + fort + '"')
-                data = cursor.fetchone()
-                cursor.close()
-                conn.close()
-                if data is None:
-                    # 打印文字
+                if not is_emoji(fort):
                     if fort in half_text:
                         x_num -= 0.4
-                else:
-                    # 打印表情
-                    if not is_emoji(fort):
-                        if fort in half_text:
-                            x_num -= 0.4
+
     x = int((textlen + 1) * size)
     y = int((y_num + 1) * size * 1.2)
 
@@ -661,13 +644,8 @@ def get_draw(data):
 
                             if emoji_code == "":
                                 # 检测是否半格字符
-                                conn = sqlite3.connect(emojidbname)
-                                cursor = conn.cursor()
-                                cursor.execute('select * from emoji where emoji = "' + text + '"')
-                                data = cursor.fetchone()
-                                cursor.close()
-                                conn.close()
-                                if data is None:
+                                if not is_emoji(font):
+
                                     # 打印文字
                                     draw.text(xy=(int(x + print_x * fortsize), int(y + print_y * fortsize)), text=text,
                                               fill=(0, 0, 0), font=cache_font)
@@ -746,16 +724,7 @@ def get_draw(data):
 
                                 if emoji_code == "":
                                     # 检测是否半格字符
-                                    conn = sqlite3.connect(emojidbname)
-                                    cursor = conn.cursor()
-                                    try:
-                                        cursor.execute('select * from emoji where emoji = "' + text + '"')
-                                        data = cursor.fetchone()
-                                    except:
-                                        data = None
-                                    cursor.close()
-                                    conn.close()
-                                    if data is None:
+                                    if not is_emoji(font):
                                         # 打印文字
                                         draw.text(xy=(int(x + print_x * fortsize), int(y + print_y * fortsize)),
                                                   text=text,
@@ -1414,13 +1383,7 @@ def get_draw(data):
 
                     if emoji_code == "":
                         # 检测是否半格字符
-                        conn = sqlite3.connect(emojidbname)
-                        cursor = conn.cursor()
-                        cursor.execute('select * from emoji where emoji = "' + text + '"')
-                        data = cursor.fetchone()
-                        cursor.close()
-                        conn.close()
-                        if data is None:
+                        if not is_emoji(font):
                             # 打印文字
                             draw.text(xy=(int(x + print_x * fortsize), int(y + print_y * fortsize)), text=text,
                                       fill=(0, 0, 0), font=font)
@@ -1505,13 +1468,7 @@ def get_draw(data):
 
                     if emoji_code == "":
                         # 检测是否半格字符
-                        conn = sqlite3.connect(emojidbname)
-                        cursor = conn.cursor()
-                        cursor.execute('select * from emoji where emoji = "' + text + '"')
-                        data = cursor.fetchone()
-                        cursor.close()
-                        conn.close()
-                        if data is None:
+                        if not is_emoji(font):
                             # 打印文字
                             draw.text(xy=(int(x + print_x * fortsize), int(y + print_y * fortsize)), text=text,
                                       fill=(0, 0, 0), font=cache_font)
@@ -1583,13 +1540,7 @@ def get_draw(data):
 
                     if emoji_code == "":
                         # 检测是否半格字符
-                        conn = sqlite3.connect(emojidbname)
-                        cursor = conn.cursor()
-                        cursor.execute('select * from emoji where emoji = "' + text + '"')
-                        data = cursor.fetchone()
-                        cursor.close()
-                        conn.close()
-                        if data is None:
+                        if not is_emoji(font):
                             # 打印文字
                             draw.text(xy=(int(x + print_x * fortsize), int(y + print_y * fortsize)), text=text,
                                       fill=(100, 100, 100), font=cache_font)
@@ -1621,7 +1572,7 @@ async def _(bot: Bot, messageevent: MessageEvent):
     print("bili-push_command")
     returnpath = ""
     code = 0
-    qq = int(messageevent.get_user_id())
+    qq = str(messageevent.get_user_id())
     message = messageevent.get_message()
     message = str(message)
     commands = get_commands(message)
@@ -1777,6 +1728,17 @@ async def _(bot: Bot, messageevent: MessageEvent):
                         # 获取动态id并保存
                         return_datas = returnjson["data"]["cards"]
 
+                        try:
+                            conn = sqlite3.connect(livedb)
+                            cursor = conn.cursor()
+                            cursor.execute('create table ' + groupcode +
+                                           '(dynamicid int(10) primary key, uid varchar(10))')
+                            cursor.close()
+                            conn.commit()
+                            conn.close()
+                        except:
+                            print()
+
                         conn = sqlite3.connect(livedb)
                         cursor = conn.cursor()
                         for return_data in return_datas:
@@ -1924,7 +1886,7 @@ async def run_every_6_minute():
         grouplist.append(str(memberinfo['group_id']))
 
     # ############获取动态############s
-    run = False  # 代码折叠
+    run = True  # 代码折叠
     if run:
         print('---------获取更新的动态----------')
         print("获取订阅列表")
@@ -1962,10 +1924,6 @@ async def run_every_6_minute():
                     if groupcode in grouplist:
                         if uid not in subscriptionlist:
                             subscriptionlist.append(uid)
-
-            uids = ["1459104794", "171818544", "354218272"]
-            for uid in uids:
-                subscriptionlist.append(str(uid))
 
             for uid in subscriptionlist:
                 print('-----------------------开始获取信息----------')
@@ -2023,25 +1981,6 @@ async def run_every_6_minute():
         cursor.close()
         conn.commit()
         conn.close()
-
-        # 添加邦推送
-        conn = sqlite3.connect(groupconfigdb)
-        cursor = conn.cursor()
-        cursor.execute("select * from groupconfig where bilibilidynamic = 'on'")
-        configs = cursor.fetchall()
-        cursor.close()
-        conn.commit()
-        conn.close()
-
-        for config in configs:
-            groupcode = str(config[0])
-            uids = ["1459104794", "171818544", "354218272"]
-            for uid in uids:
-                subscription = []
-                subscription.append("data")
-                subscription.append(groupcode)
-                subscription.append(uid)
-                subscriptions.append(subscription)
 
         if not subscriptions:
             print("无订阅")
