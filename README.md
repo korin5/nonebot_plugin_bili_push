@@ -19,7 +19,7 @@
 ## 安装
 （以下方法三选一）
 
-~~一.命令行安装：（未就绪）~~
+一.命令行安装：
 
     nb plugin install nonebot-plugin-bili-push
  二.使用插件文件安装：（不推荐）
