@@ -99,12 +99,25 @@ half_text = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N
              '"', "'", "！", " "]
 
 
+def get_file_path(file_name):
+    file_path = basepath + "cache/file/"
+    if not os.path.exists(file_path):
+        os.makedirs(file_path)
+    file_path += file_name
+    if not os.path.exists(file_path):
+        # 如果文件未缓存，则缓存下来
+        url = apiurl + "/file/" + file_name
+        with open(file_path, "wb") as f, requests.get(url) as res:
+            f.write(res.content)
+    return file_path
+
+
 def get_emoji(emoji):
     cachepath = basepath + "cache/emoji/"
     if not os.path.exists(cachepath):
         os.makedirs(cachepath)
     cachepath = cachepath + emoji + ".png"
-    if not cachepath.exists():
+    if not os.path.exists(cachepath):
         if use_api:
             url = apiurl + "/api/emoji?imageid=" + emoji
             try:
@@ -291,7 +304,7 @@ def image_resize2(image, size: [int, int], overturn=False):
 def draw_text(text: str,
               size: int,
               textlen: int = 20,
-              fontfile: str = "./font/腾祥嘉丽中圆.ttf",
+              fontfile: str = get_file_path("腾祥嘉丽中圆.ttf"),
               biliemoji_infos=None,
               draw_qqemoji=False,
               calculate=False
@@ -457,7 +470,7 @@ def get_draw(data):
             emoji_infos = []
 
         fortsize = 30
-        fontfile = './font/腾祥嘉丽中圆.ttf'
+        fontfile = get_file_path("腾祥嘉丽中圆.ttf")
         font = ImageFont.truetype(font=fontfile, size=fortsize)
 
         # 转发动态
