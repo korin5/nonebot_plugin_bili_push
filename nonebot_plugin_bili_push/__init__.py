@@ -1,4 +1,5 @@
 import os
+import requests
 import re
 from PIL import Image, ImageDraw, ImageFont
 from io import BytesIO
@@ -8,11 +9,9 @@ from nonebot import on_command
 import sqlite3
 from nonebot.adapters.onebot.v11 import GROUP_ADMIN, GROUP_OWNER
 import random
-from nonebot import require, logger
+from nonebot import require
 import nonebot
 from nonebot.plugin import PluginMetadata
-import httpx
-import asyncio
 
 require("nonebot_plugin_apscheduler")
 from nonebot_plugin_apscheduler import scheduler
@@ -42,23 +41,6 @@ config = nonebot.get_driver().config
 # bilipush_emojiapi=True
 #
 
-
-def get_api(url: str, type: str = "json"):
-    if type == "json":
-        async def fetch(url):
-            async with httpx.AsyncClient(http2=True) as client:
-                response = await client.get(url)
-            return response.text
-        return_data = asyncio.get_event_loop().run_until_complete(fetch(apiurl))
-        return return_data
-
-    elif type == "image":
-        return httpx.get(apiurl).read()
-    return
-
-
-
-
 # 配置1：
 try:
     adminqq = config.superusers
@@ -81,7 +63,7 @@ try:
 except:
     try:
         get_url = apiurl + "/json/config?name=ping"
-        return_json = get_api(get_url, "json")
+        return_json = json.loads(requests.get(get_url).text)
         if return_json["code"] == 0:
             use_api = True
         else:
@@ -105,18 +87,15 @@ __plugin_meta__ = PluginMetadata(
 
 # 创建基础参数
 returnpath = ""
-plugin_dbpath = basepath + 'db/bili_push/'
-if not os.path.exists(plugin_dbpath):
-    os.makedirs(plugin_dbpath)
-livedb = plugin_dbpath + "bili_push.db"
-heartdb = plugin_dbpath + "heart.db"
+livedbpath = basepath + 'botsdb/live/'
+if not os.path.exists(livedbpath):
+    os.makedirs(livedbpath)
+livedb = livedbpath + "bili_push.db"
 half_text = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U",
              "V", "W", "X", "Y", "Z", "a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "p",
              "q", "r", "s", "t", "u", "v", "w", "x", "y", "z", "1", "2", "3", "4", "5", "6", "7", "8", "9", "0", ",",
              ".", "/", "\\", "[", "]", "(", ")", "!", "+", "-", "*", "！", "？", "。", "，", "{", "}", "、", "‘", "“",
              '"', "'", "！", " "]
-
-
 
 
 def get_emoji(emoji):
@@ -663,8 +642,13 @@ def get_draw(data):
 
                             if emoji_code == "":
                                 # 检测是否半格字符
-                                if not is_emoji(font):
-
+                                conn = sqlite3.connect(emojidbname)
+                                cursor = conn.cursor()
+                                cursor.execute('select * from emoji where emoji = "' + text + '"')
+                                data = cursor.fetchone()
+                                cursor.close()
+                                conn.close()
+                                if data is None:
                                     # 打印文字
                                     draw.text(xy=(int(x + print_x * fortsize), int(y + print_y * fortsize)), text=text,
                                               fill=(0, 0, 0), font=cache_font)
@@ -743,7 +727,16 @@ def get_draw(data):
 
                                 if emoji_code == "":
                                     # 检测是否半格字符
-                                    if not is_emoji(font):
+                                    conn = sqlite3.connect(emojidbname)
+                                    cursor = conn.cursor()
+                                    try:
+                                        cursor.execute('select * from emoji where emoji = "' + text + '"')
+                                        data = cursor.fetchone()
+                                    except:
+                                        data = None
+                                    cursor.close()
+                                    conn.close()
+                                    if data is None:
                                         # 打印文字
                                         draw.text(xy=(int(x + print_x * fortsize), int(y + print_y * fortsize)),
                                                   text=text,
@@ -1402,7 +1395,13 @@ def get_draw(data):
 
                     if emoji_code == "":
                         # 检测是否半格字符
-                        if not is_emoji(font):
+                        conn = sqlite3.connect(emojidbname)
+                        cursor = conn.cursor()
+                        cursor.execute('select * from emoji where emoji = "' + text + '"')
+                        data = cursor.fetchone()
+                        cursor.close()
+                        conn.close()
+                        if data is None:
                             # 打印文字
                             draw.text(xy=(int(x + print_x * fortsize), int(y + print_y * fortsize)), text=text,
                                       fill=(0, 0, 0), font=font)
@@ -1487,7 +1486,13 @@ def get_draw(data):
 
                     if emoji_code == "":
                         # 检测是否半格字符
-                        if not is_emoji(font):
+                        conn = sqlite3.connect(emojidbname)
+                        cursor = conn.cursor()
+                        cursor.execute('select * from emoji where emoji = "' + text + '"')
+                        data = cursor.fetchone()
+                        cursor.close()
+                        conn.close()
+                        if data is None:
                             # 打印文字
                             draw.text(xy=(int(x + print_x * fortsize), int(y + print_y * fortsize)), text=text,
                                       fill=(0, 0, 0), font=cache_font)
@@ -1559,7 +1564,13 @@ def get_draw(data):
 
                     if emoji_code == "":
                         # 检测是否半格字符
-                        if not is_emoji(font):
+                        conn = sqlite3.connect(emojidbname)
+                        cursor = conn.cursor()
+                        cursor.execute('select * from emoji where emoji = "' + text + '"')
+                        data = cursor.fetchone()
+                        cursor.close()
+                        conn.close()
+                        if data is None:
                             # 打印文字
                             draw.text(xy=(int(x + print_x * fortsize), int(y + print_y * fortsize)), text=text,
                                       fill=(100, 100, 100), font=cache_font)
@@ -2000,6 +2011,25 @@ async def run_every_6_minute():
         cursor.close()
         conn.commit()
         conn.close()
+
+        # 添加邦推送
+        conn = sqlite3.connect(groupconfigdb)
+        cursor = conn.cursor()
+        cursor.execute("select * from groupconfig where bilibilidynamic = 'on'")
+        configs = cursor.fetchall()
+        cursor.close()
+        conn.commit()
+        conn.close()
+
+        for config in configs:
+            groupcode = str(config[0])
+            uids = ["1459104794", "171818544", "354218272"]
+            for uid in uids:
+                subscription = []
+                subscription.append("data")
+                subscription.append(groupcode)
+                subscription.append(uid)
+                subscriptions.append(subscription)
 
         if not subscriptions:
             print("无订阅")
