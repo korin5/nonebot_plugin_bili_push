@@ -22,8 +22,10 @@
 一.命令行安装：
 
     nb plugin install nonebot-plugin-bili-push
- 二.使用插件文件安装：（不推荐）
- 1.下载插件文件，放到plugins文件夹。
+ 二.使用插件文件安装：（不推荐） 
+ 
+1.下载插件文件，放到plugins文件夹。
+
 2.修改pyproject.toml使其可以加载插件
 
 三.pip安装：（不推荐）
@@ -36,6 +38,7 @@
  
 ## 配置
 在 nonebot2 项目的`.env`文件中选填配置
+
 配置管理员账户，只有管理员才能添加订阅
 
     SUPERUSERS=["12345678"] # 配置 NoneBot 超级用户
