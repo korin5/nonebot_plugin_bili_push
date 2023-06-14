@@ -1,5 +1,4 @@
 import os
-import requests
 import re
 from PIL import Image, ImageDraw, ImageFont
 from io import BytesIO
@@ -9,9 +8,11 @@ from nonebot import on_command
 import sqlite3
 from nonebot.adapters.onebot.v11 import GROUP_ADMIN, GROUP_OWNER
 import random
-from nonebot import require
+from nonebot import require, logger
 import nonebot
 from nonebot.plugin import PluginMetadata
+import httpx
+import asyncio
 
 require("nonebot_plugin_apscheduler")
 from nonebot_plugin_apscheduler import scheduler
@@ -41,6 +42,23 @@ config = nonebot.get_driver().config
 # bilipush_emojiapi=True
 #
 
+
+def get_api(url: str, type: str = "json"):
+    if type == "json":
+        async def fetch(url):
+            async with httpx.AsyncClient(http2=True) as client:
+                response = await client.get(url)
+            return response.text
+        return_data = asyncio.get_event_loop().run_until_complete(fetch(apiurl))
+        return return_data
+
+    elif type == "image":
+        return httpx.get(apiurl).read()
+    return
+
+
+
+
 # 配置1：
 try:
     adminqq = config.superusers
@@ -63,7 +81,7 @@ try:
 except:
     try:
         get_url = apiurl + "/json/config?name=ping"
-        return_json = json.loads(requests.get(get_url).text)
+        return_json = get_api(get_url, "json")
         if return_json["code"] == 0:
             use_api = True
         else:
@@ -99,6 +117,8 @@ half_text = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N
              '"', "'", "！", " "]
 
 
+
+
 def get_emoji(emoji):
     cachepath = basepath + "cache/emoji/"
     if not os.path.exists(cachepath):
@@ -108,8 +128,7 @@ def get_emoji(emoji):
         if use_api:
             url = apiurl + "/api/emoji?imageid=" + emoji
             try:
-                return_image = requests.get(url)
-                return_image = Image.open(BytesIO(return_image.content))
+                return_image = get_api(url, "image")
                 return_image.save(cachepath)
             except:
                 print("api出错，请联系开发者")
