@@ -1,17 +1,16 @@
+from nonebot.adapters.onebot.v11 import Bot, MessageEvent, GroupMessageEvent, MessageSegment
+from nonebot.adapters.onebot.v11 import GROUP_ADMIN, GROUP_OWNER
+from nonebot import require, on_command
+from nonebot.plugin import PluginMetadata
+import nonebot
 import os
 import requests
 import re
 from PIL import Image, ImageDraw, ImageFont
 from io import BytesIO
 import json
-from nonebot.adapters.onebot.v11 import Bot, MessageEvent, GroupMessageEvent, MessageSegment
-from nonebot import on_command
 import sqlite3
-from nonebot.adapters.onebot.v11 import GROUP_ADMIN, GROUP_OWNER
 import random
-from nonebot import require
-import nonebot
-from nonebot.plugin import PluginMetadata
 
 require("nonebot_plugin_apscheduler")
 from nonebot_plugin_apscheduler import scheduler
@@ -64,6 +63,8 @@ try:
     basepath = config.bilipush_basepath
     if basepath.startswith("./"):
         basepath = os.path.abspath('.') + "/" + basepath.removeprefix(".")
+    else:
+        basepath += "/"
 except:
     basepath = os.path.abspath('.') + "/"
 # 配置3：
@@ -95,7 +96,7 @@ try:
 except:
     sleeptime = 10
 
-
+# 插件元信息，让nonebot读取到这个插件是干嘛的
 __plugin_meta__ = PluginMetadata(
     name="bili_push",
     description="推送b站动态",
@@ -124,6 +125,11 @@ half_text = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N
 
 
 def get_file_path(file_name):
+    """
+    获取文件的路径信息，如果没下载就下载下来
+    :param file_name: 文件名。例：“file.zip”
+    :return: 文件路径。例："c:/bot/cache/file/file.zip"
+    """
     file_path = basepath + "cache/file/"
     if not os.path.exists(file_path):
         os.makedirs(file_path)
@@ -467,10 +473,9 @@ def get_draw(data):
     time_m = str(time.strftime("%M", time.localtime()))
     time_s = str(time.strftime("%S", time.localtime()))
     timeshort = time_h + time_m + time_s
-    cachepath = basepath + "local-ImgCache/" + date_year + '/' + date_month + '/' + date_day + '/'
+    cachepath = basepath + "cache/draw/" + date_year + '/' + date_month + '/' + date_day + '/'
     if not os.path.exists(cachepath):
         os.makedirs(cachepath)
-
     qq = str(random.randint(10000, 99999))
     addimage = ""
     runcode = 1
@@ -1652,7 +1657,23 @@ async def _(bot: Bot, messageevent: MessageEvent):
     time_s = str(time.strftime("%S", time.localtime()))
     timeshort = time_h + time_m + time_s
 
-    cachepath = basepath + "local-ImgCache/" + date_year + '/' + date_month + '/' + date_day + '/'
+    cachepath = basepath + "cache/draw/" + date_year + '/' + date_month + '/' + date_day + '/'
+
+    # 多创建一次文件夹
+    if not os.path.exists(livedb.removesuffix("/bili_push.db")):
+        os.makedirs(livedb.removesuffix("/bili_push.db"))
+
+    # 尝试新建数据库
+    try:
+        # 数据库文件 如果文件不存在，会自动在当前目录中创建
+        conn = sqlite3.connect(livedb)
+        cursor = conn.cursor()
+        cursor.execute('create table subscriptionlist '
+                       '(id int(10) primary key, groupcode varchar(10), uid int(10))')
+        cursor.close()
+        conn.close()
+    except:
+        print('已存在订阅数据库，开始读取数据')
 
     if command == "最新动态":
         print("command:查询最新动态")
@@ -1703,16 +1724,7 @@ async def _(bot: Bot, messageevent: MessageEvent):
                 message = "请添加uid来添加订阅"
             else:
                 uid = command2
-                try:
-                    # 数据库文件 如果文件不存在，会自动在当前目录中创建
-                    conn = sqlite3.connect(livedb)
-                    cursor = conn.cursor()
-                    cursor.execute('create table subscriptionlist '
-                                   '(id int(10) primary key, groupcode varchar(10), uid int(10))')
-                    cursor.close()
-                    conn.close()
-                except:
-                    print('已存在订阅数据库，开始读取数据')
+
                 conn = sqlite3.connect(livedb)
                 cursor = conn.cursor()
                 cursor.execute("SELECT * FROM subscriptionlist WHERE uid = " + str(uid) +
@@ -1801,7 +1813,7 @@ async def _(bot: Bot, messageevent: MessageEvent):
             message = "您无权限操作哦"
     elif command == "删除订阅":
         if qq in adminqq:
-            print("command:取消订阅")
+            print("command:删除订阅")
             code = 0
             if "UID:" in command2:
                 command2 = command2.removeprefix("UID:")
@@ -1812,19 +1824,10 @@ async def _(bot: Bot, messageevent: MessageEvent):
                 command2 = ""
             if command2 == "":
                 code = 1
-                message = "请添加uid来取消订阅"
+                message = "请添加uid来删除订阅"
             else:
                 uid = command2
-                try:
-                    # 数据库文件 如果文件不存在，会自动在当前目录中创建
-                    conn = sqlite3.connect(livedb)
-                    cursor = conn.cursor()
-                    cursor.execute('create table subscriptionlist '
-                                   '(id int(10) primary key, groupcode varchar(10), uid int(10))')
-                    cursor.close()
-                    conn.close()
-                except:
-                    print('已存在订阅数据库，开始读取数据')
+
                 conn = sqlite3.connect(livedb)
                 cursor = conn.cursor()
                 cursor.execute("SELECT * FROM subscriptionlist WHERE uid = " + uid + " AND groupcode = '" + groupcode+"'")
@@ -1845,21 +1848,12 @@ async def _(bot: Bot, messageevent: MessageEvent):
                     cursor.close()
                     conn.close()
                     code = 1
-                    message = "取消订阅成功"
+                    message = "删除订阅成功"
         else:
             code = 1
             message = "您无权限操作哦"
     elif command == "查看订阅":
-        try:
-            # 数据库文件 如果文件不存在，会自动在当前目录中创建
-            conn = sqlite3.connect(livedb)
-            cursor = conn.cursor()
-            cursor.execute('create table subscriptionlist '
-                           '(id int(10) primary key, groupcode varchar(10), uid int(10))')
-            cursor.close()
-            conn.close()
-        except:
-            print('已存在订阅数据库，开始读取数据')
+
         conn = sqlite3.connect(livedb)
         cursor = conn.cursor()
         cursor.execute("SELECT * FROM subscriptionlist WHERE groupcode = '" + groupcode + "'")
@@ -1908,7 +1902,7 @@ async def run_every_6_minute():
     time_m = str(time.strftime("%M", time.localtime()))
     time_s = str(time.strftime("%S", time.localtime()))
     timeshort = time_h + time_m + time_s
-    cachepath = basepath + "local-ImgCache/" + date_year + '/' + date_month + '/' + date_day + '/'
+    cachepath = basepath + "cache/draw/" + date_year + '/' + date_month + '/' + date_day + '/'
     qq = str(random.randint(1000, 9999))
     message = ""
 
@@ -1926,20 +1920,24 @@ async def run_every_6_minute():
     for memberinfo in groups:
         grouplist.append(str(memberinfo['group_id']))
 
+    # 尝试新建数据库
+    try:
+        # 数据库文件 如果文件不存在，会自动在当前目录中创建
+        conn = sqlite3.connect(livedb)
+        cursor = conn.cursor()
+        cursor.execute('create table subscriptionlist '
+                       '(id int(10) primary key, groupcode varchar(10), uid int(10))')
+        cursor.close()
+        conn.close()
+    except:
+        print('已存在订阅数据库，开始读取数据')
+
     # ############获取动态############s
     run = True  # 代码折叠
     if run:
         print('---------获取更新的动态----------')
         print("获取订阅列表")
-        try:
-            # 数据库文件 如果文件不存在，会自动在当前目录中创建
-            conn = sqlite3.connect(livedb)
-            cursor = conn.cursor()
-            cursor.execute('create table subscriptionlist (id int(10) primary key, gruopcode varchar(10), uid int(10))')
-            cursor.close()
-            conn.close()
-        except:
-            print('已存在订阅数据库，开始读取数据')
+
         conn = sqlite3.connect(livedb)
         cursor = conn.cursor()
         cursor.execute("SELECT * FROM subscriptionlist")
