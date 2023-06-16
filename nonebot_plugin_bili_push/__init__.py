@@ -467,7 +467,7 @@ def get_draw(data):
     time_m = str(time.strftime("%M", time.localtime()))
     time_s = str(time.strftime("%S", time.localtime()))
     timeshort = time_h + time_m + time_s
-    cachepath = basepath + "local-ImgCache/" + date_year + '/' + date_month + '/' + date_day + '/'
+    cachepath = basepath + "cache/draw/" + date_year + '/' + date_month + '/' + date_day + '/'
     if not os.path.exists(cachepath):
         os.makedirs(cachepath)
 
@@ -476,8 +476,8 @@ def get_draw(data):
     runcode = 1
     code = 0
     returnpath = ""
-    run = 'on'  # 代码折叠
-    if run == 'on':
+    run = True  # 代码折叠
+    if run:
         print('bili-push_开始获取数据')
         biliname = str(data["desc"]["user_profile"]["info"]["uname"])
         biliface = str(data["desc"]["user_profile"]["info"]["face"])
@@ -1652,7 +1652,7 @@ async def _(bot: Bot, messageevent: MessageEvent):
     time_s = str(time.strftime("%S", time.localtime()))
     timeshort = time_h + time_m + time_s
 
-    cachepath = basepath + "local-ImgCache/" + date_year + '/' + date_month + '/' + date_day + '/'
+    cachepath = basepath + "cache/draw/" + date_year + '/' + date_month + '/' + date_day + '/'
 
     if command == "最新动态":
         print("command:查询最新动态")
@@ -1908,7 +1908,7 @@ async def run_every_6_minute():
     time_m = str(time.strftime("%M", time.localtime()))
     time_s = str(time.strftime("%S", time.localtime()))
     timeshort = time_h + time_m + time_s
-    cachepath = basepath + "local-ImgCache/" + date_year + '/' + date_month + '/' + date_day + '/'
+    cachepath = basepath + "cache/draw/" + date_year + '/' + date_month + '/' + date_day + '/'
     qq = str(random.randint(1000, 9999))
     message = ""
 
@@ -2099,7 +2099,6 @@ async def run_every_6_minute():
                         if groupcode in grouplist:
                             send = True
                         groupcode = "g" + groupcode
-
 
                 try:
                     # 缓存文件，存储待发送动态 如果文件不存在，会自动在当前目录中创建

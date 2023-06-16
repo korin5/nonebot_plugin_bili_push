@@ -1,7 +1,7 @@
 <div align="center">
-  <a href="https://v2.nonebot.dev/store"><img src="https://github.com/supergugugu/1.png" width="180" height="180" alt="NoneBotPluginLogo"></a>
+  <a href="https://v2.nonebot.dev/store"><img src="https://github.com/supergugugu/1.png" width="18" height="18" alt="NoneBotPluginLogo"></a>
   <br>
-  <p><img src="https://github.com/2.png" width="240" alt="NoneBotPluginText"></p>
+  <p><img src="https://github.com/2.png" width="24" alt="NoneBotPluginText"></p>
 </div>
 
 <div align="center">
@@ -55,9 +55,21 @@
 
     bilipush_sleeptime=10
 
+## To-Do
+
+ - [x] ~~插件能用，能正常运行~~
+ - [ ] 为readme添加标题与头像
+ - [ ] 将请求api改为异步
+ - [ ] 将请求api改为异步
+ - [ ] 完善动态类型（目前仅支持文字、图文、视频、转发）
+ - [ ] 字体排版优化（字符位置以及）
+ - [ ] 添加话题标签
+ - [ ] 添加各种装饰（头像框、装扮等）
+ - [ ] 配置推送样式
+
 ## 参考内容
 Mirai动态绘制插件 [BilibiliDynamic MiraiPlugin](https://github.com/Colter23/bilibili-dynamic-mirai-plugin)
 
 ## 交流
 -   交流群[鸽子窝里有鸽子（291788927）](https://qm.qq.com/cgi-bin/qm/qr?k=QhOk7Z2jaXBOnAFfRafEy9g5WoiETQhy&jump_from=webapi&authKey=fCvx/auG+QynlI8bcFNs4Csr2soR8UjzuwLqrDN9F8LDwJrwePKoe89psqpozg/m)
--   有疑问或者建议都可以进群详谈。
+-   有疑问或者建议都可以进群唠嗑唠嗑。
