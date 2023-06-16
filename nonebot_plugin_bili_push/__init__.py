@@ -1916,6 +1916,16 @@ async def run_every_6_minute():
     for memberinfo in groups:
         grouplist.append(str(memberinfo['group_id']))
 
+    try:
+        # 数据库文件 如果文件不存在，会自动在当前目录中创建
+        conn = sqlite3.connect(livedb)
+        cursor = conn.cursor()
+        cursor.execute('create table subscriptionlist (id int(10) primary key, gruopcode varchar(10), uid int(10))')
+        cursor.close()
+        conn.close()
+    except Exception as e:
+        print('已存在订阅数据库，开始读取数据')
+
     # ############获取动态############s
     run = True  # 代码折叠
     if run:
