@@ -46,6 +46,10 @@
 
     bilipush_basepath="./"
 
+是否使用api来获取emoji图像，默认使用。
+
+    bilipush_emojiapi=True
+
 刷新间隔：每次刷新间隔多少分钟，默认为12分钟。
 
     bilipush_waittime=12
@@ -54,6 +58,13 @@
 时间为设置的时间再加上随机延迟10-20秒
 
     bilipush_sleeptime=10
+    
+只响应一个bot（beta）
+
+一个群内有多个bot，可以只让1个bot处理消息。
+默认为关闭该功能，既所有bot都会响应
+
+    bilipush_botswift=False
     
 
 ## To-Do

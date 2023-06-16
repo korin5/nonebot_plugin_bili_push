@@ -51,6 +51,12 @@ config = nonebot.get_driver().config
 # 时间为设置的时间再加上随机延迟10-20秒
 # bilipush_sleeptime=10
 #
+# 配置7：
+# 只响应一个bot
+# 配置一个群中是否只响应1次
+# 为True时只响应1个bot，默认为False
+# bilipush_botswift=False
+#
 
 # 配置1：
 try:
@@ -95,6 +101,11 @@ try:
     sleeptime = int(config.bilipush_sleeptime)
 except Exception as e:
     sleeptime = 10
+# 配置7：
+try:
+    config_botswift = config.bilipush_botswift
+except Exception as e:
+    config_botswift = False
 
 # 插件元信息，让nonebot读取到这个插件是干嘛的
 __plugin_meta__ = PluginMetadata(
@@ -1899,7 +1910,7 @@ async def run_every_6_minute():
     time_s = str(time.strftime("%S", time.localtime()))
     timeshort = time_h + time_m + time_s
     cachepath = basepath + "cache/draw/" + date_year + '/' + date_month + '/' + date_day + '/'
-    qq = str(random.randint(1000, 9999))
+    random_num = str(random.randint(1000, 9999))
     message = ""
 
     botid = str(nonebot.get_bot())
@@ -2022,194 +2033,197 @@ async def run_every_6_minute():
                 groupcode = subscription[1]
                 uid = str(subscription[2])
                 # 判断是否本bot以及是否主bot
-                send = False
-                # 读取主bot
-                botswift = "off"
-                try:
-                    # 数据库文件 如果文件不存在，会自动在当前目录中创建
+                send = True
+                if config_botswift:
+                    send = False
+                    # 读取主bot
+                    botswift = "off"
+                    try:
+                        # 数据库文件 如果文件不存在，会自动在当前目录中创建
+                        conn = sqlite3.connect(heartdb)
+                        cursor = conn.cursor()
+                        cursor.execute(
+                            'create table ' + groupcode + '(botid VARCHAR(10) primary key, permission VARCHAR(20))')
+                        cursor.close()
+                        conn.close()
+                    except Exception as e:
+                        print('已存在锁定数据库，开始读取数据')
                     conn = sqlite3.connect(heartdb)
                     cursor = conn.cursor()
-                    cursor.execute(
-                        'create table ' + groupcode + '(botid VARCHAR(10) primary key, permission VARCHAR(20))')
+                    cursor.execute('SELECT * FROM ' + groupcode + ' WHERE permission = "10"')
+                    group_data = cursor.fetchone()
                     cursor.close()
                     conn.close()
-                except Exception as e:
-                    print('已存在锁定数据库，开始读取数据')
-                conn = sqlite3.connect(heartdb)
-                cursor = conn.cursor()
-                cursor.execute('SELECT * FROM ' + groupcode + ' WHERE permission = "10"')
-                group_data = cursor.fetchone()
-                cursor.close()
-                conn.close()
-                if group_data is None:
-                    conn = sqlite3.connect(heartdb)
-                    cursor = conn.cursor()
-                    cursor.execute('replace into ' + groupcode + '(botid,permission) values("' + botid + '","10")')
-                    cursor.close()
-                    conn.commit()
-                    conn.close()
+                    if group_data is None:
+                        conn = sqlite3.connect(heartdb)
+                        cursor = conn.cursor()
+                        cursor.execute('replace into ' + groupcode + '(botid,permission) values("' + botid + '","10")')
+                        cursor.close()
+                        conn.commit()
+                        conn.close()
 
-                    botswift = 'on'
-                else:
-                    if group_data[0] == botid:
                         botswift = 'on'
                     else:
-                        conn = sqlite3.connect(heartdb)
-                        cursor = conn.cursor()
-                        cursor.execute('select * from heart where botid = ' + str(group_data[0]))
-                        data = cursor.fetchone()
-                        cursor.close()
-                        conn.close()
-
-                        if data is not None:
-                            if int(data[2]) >= 5:
-                                botswift = 'on'
-
-                        conn = sqlite3.connect(heartdb)
-                        cursor = conn.cursor()
-                        cursor.execute('SELECT * FROM ' + groupcode + ' WHERE permission = "5"')
-                        data = cursor.fetchone()
-                        cursor.close()
-                        conn.close()
-                        if data is None:
+                        if group_data[0] == botid:
+                            botswift = 'on'
+                        else:
                             conn = sqlite3.connect(heartdb)
                             cursor = conn.cursor()
-                            cursor.execute(
-                                'replace into ' + groupcode + '(botid,permission) values("' + botid + '","5")')
+                            cursor.execute('select * from heart where botid = ' + str(group_data[0]))
+                            data = cursor.fetchone()
                             cursor.close()
-                            conn.commit()
                             conn.close()
 
-                if botswift == "on":
-                    if "p" in groupcode:
-                        groupcode = groupcode.removeprefix("gp")
-                        if groupcode in friendlist:
-                            send = True
-                        groupcode = "gp" + groupcode
-                    else:
-                        groupcode = groupcode.removeprefix("g")
-                        if groupcode in grouplist:
-                            send = True
-                        groupcode = "g" + groupcode
+                            if data is not None:
+                                if int(data[2]) >= 5:
+                                    botswift = 'on'
 
-                try:
-                    # 缓存文件，存储待发送动态 如果文件不存在，会自动在当前目录中创建
-                    conn = sqlite3.connect(livedb)
-                    cursor = conn.cursor()
-                    cursor.execute(
-                        "create table "+groupcode+" (dynamicid int(10) primary key, uid varchar(10))")
-                    cursor.close()
-                    conn.close()
-                except Exception as e:
-                    print('已存在订阅数据库，开始读取数据')
+                            conn = sqlite3.connect(heartdb)
+                            cursor = conn.cursor()
+                            cursor.execute('SELECT * FROM ' + groupcode + ' WHERE permission = "5"')
+                            data = cursor.fetchone()
+                            cursor.close()
+                            conn.close()
+                            if data is None:
+                                conn = sqlite3.connect(heartdb)
+                                cursor = conn.cursor()
+                                cursor.execute(
+                                    'replace into ' + groupcode + '(botid,permission) values("' + botid + '","5")')
+                                cursor.close()
+                                conn.commit()
+                                conn.close()
 
-                # 获取已推送的动态列表
-                conn = sqlite3.connect(livedb)
-                cursor = conn.cursor()
-                cursor.execute("SELECT * FROM "+groupcode+" WHERE uid = " + uid)
-                pushed_datas = cursor.fetchall()
-                cursor.close()
-                conn.commit()
-                dynamicids = []
-                for data in pushed_datas:
-                    dynamicids.append(str(data[0]))
+                    if botswift == "on":
+                        if "p" in groupcode:
+                            groupcode = groupcode.removeprefix("gp")
+                            if groupcode in friendlist:
+                                send = True
+                            groupcode = "gp" + groupcode
+                        else:
+                            groupcode = groupcode.removeprefix("g")
+                            if groupcode in grouplist:
+                                send = True
+                            groupcode = "g" + groupcode
 
-                # 获取新动态列表
-                sqlite3.connect(livedb)
-                cursor = conn.cursor()
-                cursor.execute("SELECT * FROM 'wait_push' WHERE uid = '" + uid + "'")
-                datas = cursor.fetchall()
-                cursor.close()
-                conn.commit()
-
-                new_dynamicids = []
-                for data in datas:
-                    new_dynamicids.append(str(data[0]))
-
-                pushlist = []
-                if not dynamicids:
-                    print("if not pushed_datas:")
-                    conn = sqlite3.connect(livedb)
-                    cursor = conn.cursor()
-                    for data in datas:
+                if send:
+                    try:
+                        # 缓存文件，存储待发送动态 如果文件不存在，会自动在当前目录中创建
+                        conn = sqlite3.connect(livedb)
+                        cursor = conn.cursor()
                         cursor.execute(
-                            "replace into " + groupcode + "(dynamicid,uid) values(" +
-                            str(data[0]) + "," + str(data[1]) + ")")
-                    cursor.close()
-                    conn.commit()
-                    conn.close()
-                    if new_dynamicids:
-                        pushlist.append(new_dynamicids[0])
+                            "create table "+groupcode+" (dynamicid int(10) primary key, uid varchar(10))")
+                        cursor.close()
+                        conn.close()
+                    except Exception as e:
+                        print('已存在订阅数据库，开始读取数据')
 
-                elif dynamicids:
-
-                    # 计算出未推送的动态
-                    for new_dynamicid in new_dynamicids:
-                        if new_dynamicid not in dynamicids:
-                            if len(pushlist) <= 2:  # 限制单次发送条数
-                                pushlist.append(new_dynamicid)
-                print("未推送的动态" + str(pushlist))
-
-                # 分别发送图片，并保存为已推送
-                for dynamicid in pushlist:
+                    # 获取已推送的动态列表
                     conn = sqlite3.connect(livedb)
                     cursor = conn.cursor()
-                    cursor.execute("SELECT * FROM 'wait_push' WHERE dynamicid = " + dynamicid)
-                    data = cursor.fetchone()
+                    cursor.execute("SELECT * FROM "+groupcode+" WHERE uid = " + uid)
+                    pushed_datas = cursor.fetchall()
                     cursor.close()
                     conn.commit()
-                    conn.close()
+                    dynamicids = []
+                    for data in pushed_datas:
+                        dynamicids.append(str(data[0]))
 
-                    returnpath = data[2]
-                    msg = MessageSegment.image(r"file:///" + returnpath)
+                    # 获取新动态列表
+                    sqlite3.connect(livedb)
+                    cursor = conn.cursor()
+                    cursor.execute("SELECT * FROM 'wait_push' WHERE uid = '" + uid + "'")
+                    datas = cursor.fetchall()
+                    cursor.close()
+                    conn.commit()
 
-                    stime = random.randint(1, 200) / 10 + sleeptime
+                    new_dynamicids = []
+                    for data in datas:
+                        new_dynamicids.append(str(data[0]))
 
-                    if "p" in groupcode:
-                        send_qq = groupcode.removeprefix("gp")
-                        if send_qq in friendlist:
-                            # bot已添加好友，发送消息
-                            try:
-                                await nonebot.get_bot().send_private_msg(user_id=send_qq, message=msg)
-                                conn = sqlite3.connect(livedb)
-                                cursor = conn.cursor()
-                                cursor.execute(
-                                    "replace into 'gp" + send_qq + "'(dynamicid,uid) values(" + dynamicid + "," + uid + ")")
-                                cursor.close()
-                                conn.commit()
-                                conn.close()
-                                print("发送私聊成功")
-                            except Exception as e:
-                                print('私聊内容发送失败：send_qq：' + str(send_qq) + ",message:"
-                                      + message + ",retrnpath:" + returnpath)
-                            time.sleep(stime)
+                    pushlist = []
+                    if not dynamicids:
+                        print("if not pushed_datas:")
+                        conn = sqlite3.connect(livedb)
+                        cursor = conn.cursor()
+                        for data in datas:
+                            cursor.execute(
+                                "replace into " + groupcode + "(dynamicid,uid) values(" +
+                                str(data[0]) + "," + str(data[1]) + ")")
+                        cursor.close()
+                        conn.commit()
+                        conn.close()
+                        if new_dynamicids:
+                            pushlist.append(new_dynamicids[0])
+
+                    elif dynamicids:
+
+                        # 计算出未推送的动态
+                        for new_dynamicid in new_dynamicids:
+                            if new_dynamicid not in dynamicids:
+                                if len(pushlist) <= 2:  # 限制单次发送条数
+                                    pushlist.append(new_dynamicid)
+                    print("未推送的动态" + str(pushlist))
+
+                    # 分别发送图片，并保存为已推送
+                    for dynamicid in pushlist:
+                        conn = sqlite3.connect(livedb)
+                        cursor = conn.cursor()
+                        cursor.execute("SELECT * FROM 'wait_push' WHERE dynamicid = " + dynamicid)
+                        data = cursor.fetchone()
+                        cursor.close()
+                        conn.commit()
+                        conn.close()
+
+                        returnpath = data[2]
+                        msg = MessageSegment.image(r"file:///" + returnpath)
+
+                        stime = random.randint(1, 200) / 10 + sleeptime
+
+                        if "p" in groupcode:
+                            send_qq = groupcode.removeprefix("gp")
+                            if send_qq in friendlist:
+                                # bot已添加好友，发送消息
+                                try:
+                                    await nonebot.get_bot().send_private_msg(user_id=send_qq, message=msg)
+                                    conn = sqlite3.connect(livedb)
+                                    cursor = conn.cursor()
+                                    cursor.execute(
+                                        "replace into 'gp" + send_qq + "'(dynamicid,uid) values(" + dynamicid + "," + uid + ")")
+                                    cursor.close()
+                                    conn.commit()
+                                    conn.close()
+                                    print("发送私聊成功")
+                                except Exception as e:
+                                    print('私聊内容发送失败：send_qq：' + str(send_qq) + ",message:"
+                                          + message + ",retrnpath:" + returnpath)
+                                time.sleep(stime)
+                            else:
+                                print("bot未入群")
+
                         else:
-                            print("bot未入群")
-
-                    else:
-                        send_groupcode = groupcode.removeprefix("g")
-                        print("groupcode:")
-                        if send_groupcode in grouplist:
-                            # bot已添加好友，发送消息
-                            try:
-                                print("开始发送群聊")
-                                await nonebot.get_bot().send_group_msg(group_id=send_groupcode, message=msg)
-                                conn = sqlite3.connect(livedb)
-                                cursor = conn.cursor()
-                                cursor.execute(
-                                    "replace into 'g" + send_groupcode + "'(dynamicid,uid) values(" +
-                                    dynamicid + "," + uid + ")")
-                                cursor.close()
-                                conn.commit()
-                                conn.close()
-                                print("发送群聊成功")
-                            except Exception as e:
-                                print(
-                                    '群聊内容发送失败：groupcode：' + str(send_groupcode) + ",message:"
-                                    + message + ",retrnpath:" + returnpath)
-                            time.sleep(stime)
-                        else:
-                            print("bot未入群")
+                            send_groupcode = groupcode.removeprefix("g")
+                            print("groupcode:")
+                            if send_groupcode in grouplist:
+                                # bot已添加好友，发送消息
+                                try:
+                                    print("开始发送群聊")
+                                    await nonebot.get_bot().send_group_msg(group_id=send_groupcode, message=msg)
+                                    conn = sqlite3.connect(livedb)
+                                    cursor = conn.cursor()
+                                    cursor.execute(
+                                        "replace into 'g" + send_groupcode + "'(dynamicid,uid) values(" +
+                                        dynamicid + "," + uid + ")")
+                                    cursor.close()
+                                    conn.commit()
+                                    conn.close()
+                                    print("发送群聊成功")
+                                except Exception as e:
+                                    print(
+                                        '群聊内容发送失败：groupcode：' + str(send_groupcode) + ",message:"
+                                        + message + ",retrnpath:" + returnpath)
+                                time.sleep(stime)
+                            else:
+                                print("bot未入群")
 
     print("run over")
     pass
