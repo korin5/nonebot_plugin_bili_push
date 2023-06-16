@@ -56,7 +56,7 @@ config = nonebot.get_driver().config
 try:
     adminqq = config.superusers
     adminqq = list(adminqq)
-except:
+except Exception as e:
     adminqq = []
 # 配置2：
 try:
@@ -65,17 +65,17 @@ try:
         basepath = os.path.abspath('.') + "/" + basepath.removeprefix(".")
     else:
         basepath += "/"
-except:
+except Exception as e:
     basepath = os.path.abspath('.') + "/"
 # 配置3：
 try:
     apiurl = config.bilipush_apiurl
-except:
+except Exception as e:
     apiurl = "http://cdn.kanon.ink"
 # 配置4：
 try:
     use_api = config.bilipush_emojiapi
-except:
+except Exception as e:
     try:
         get_url = apiurl + "/json/config?name=ping"
         return_json = json.loads(requests.get(get_url).text)
@@ -83,17 +83,17 @@ except:
             use_api = True
         else:
             use_api = False
-    except:
+    except Exception as e:
         use_api = False
 # 配置5：
 try:
     waittime = str(config.bilipush_waittime)
-except:
+except Exception as e:
     waittime = "12"
 # 配置6：
 try:
     sleeptime = int(config.bilipush_sleeptime)
-except:
+except Exception as e:
     sleeptime = 10
 
 # 插件元信息，让nonebot读取到这个插件是干嘛的
@@ -154,7 +154,7 @@ def get_emoji(emoji):
                 return_image = requests.get(url)
                 return_image = Image.open(BytesIO(return_image.content))
                 return_image.save(cachepath)
-            except:
+            except Exception as e:
                 print("api出错，请联系开发者")
                 # api出错时直接打印文字
                 return_image = Image.new("RGBA", (100, 100), color=(0, 0, 0, 0))
@@ -180,7 +180,7 @@ def is_emoji(emoji):
             return True
         else:
             return False
-    except:
+    except Exception as e:
         return False
 
 
@@ -476,7 +476,7 @@ def get_draw(data):
     cachepath = basepath + "cache/draw/" + date_year + '/' + date_month + '/' + date_day + '/'
     if not os.path.exists(cachepath):
         os.makedirs(cachepath)
-    qq = str(random.randint(10000, 99999))
+    random_num = str(random.randint(10000, 99999))
     addimage = ""
     runcode = 1
     code = 0
@@ -497,7 +497,7 @@ def get_draw(data):
         bilidata = json.loads(bilidata)
         try:
             emoji_infos = data["display"]["emoji_info"]["emoji_details"]
-        except:
+        except Exception as e:
             emoji_infos = []
 
         fortsize = 30
@@ -512,7 +512,7 @@ def get_draw(data):
             origin_type = bilidata["item"]["orig_type"]
             try:
                 origin_emoji_infos = data["display"]["origin"]["emoji_info"]["emoji_details"]
-            except:
+            except Exception as e:
                 origin_emoji_infos = []
 
             # 投稿视频
@@ -702,7 +702,7 @@ def get_draw(data):
                                         paste_image = paste_image.resize((int(fortsize * 1.1), int(fortsize * 1.1)))
                                         draw_image.paste(paste_image,
                                                          (int(x + print_x * fortsize), int(y + print_y * fortsize)))
-                                    except:
+                                    except Exception as e:
                                         draw.text(xy=(int(x + print_x * fortsize), int(y + print_y * fortsize)),
                                                   text=text, fill=(0, 0, 0), font=cache_font)
                     # 添加视频简介
@@ -785,7 +785,7 @@ def get_draw(data):
                     returnpath = cachepath + 'bili动态/'
                     if not os.path.exists(returnpath):
                         os.makedirs(returnpath)
-                    returnpath = returnpath + date + '_' + timenow + '_' + qq + '.png'
+                    returnpath = returnpath + date + '_' + timenow + '_' + random_num + '.png'
                     draw_image.save(returnpath)
                     print("bili-push_绘图成功")
                     code = 2
@@ -805,7 +805,7 @@ def get_draw(data):
                     images.append(image_url)
                 try:
                     emoji_infos = data["display"]["emoji_info"]["emoji_details"]
-                except:
+                except Exception as e:
                     emoji_infos = []
                 print("bili-push_开始绘图")
                 if runcode == 1:
@@ -997,7 +997,7 @@ def get_draw(data):
                     returnpath = cachepath + 'bili动态/'
                     if not os.path.exists(returnpath):
                         os.makedirs(returnpath)
-                    returnpath = returnpath + date + '_' + timenow + '_' + qq + '.png'
+                    returnpath = returnpath + date + '_' + timenow + '_' + random_num + '.png'
                     draw_image.save(returnpath)
                     print("bili-push_绘图成功")
                     code = 2
@@ -1116,7 +1116,7 @@ def get_draw(data):
                     returnpath = cachepath + 'bili动态/'
                     if not os.path.exists(returnpath):
                         os.makedirs(returnpath)
-                    returnpath = returnpath + date + '_' + timenow + '_' + qq + '.png'
+                    returnpath = returnpath + date + '_' + timenow + '_' + random_num + '.png'
                     draw_image.save(returnpath)
                     print("bili-push_绘图成功")
                     code = 2
@@ -1131,7 +1131,7 @@ def get_draw(data):
                 images.append(image_url)
             try:
                 emoji_infos = data["display"]["emoji_info"]["emoji_details"]
-            except:
+            except Exception as e:
                 emoji_infos = []
 
             if runcode == 1:  # 代码折叠
@@ -1263,7 +1263,7 @@ def get_draw(data):
                 returnpath = cachepath + 'bili动态/'
                 if not os.path.exists(returnpath):
                     os.makedirs(returnpath)
-                returnpath = returnpath + date + '_' + timenow + '_' + qq + '.png'
+                returnpath = returnpath + date + '_' + timenow + '_' + random_num + '.png'
                 draw_image.save(returnpath)
                 print("bili-push_绘图成功")
                 code = 2
@@ -1273,7 +1273,7 @@ def get_draw(data):
             card_message = bilidata["item"]["content"]
             try:
                 emoji_infos = data["display"]["emoji_info"]["emoji_details"]
-            except:
+            except Exception as e:
                 emoji_infos = []
 
             if runcode == 1:
@@ -1329,7 +1329,7 @@ def get_draw(data):
                 returnpath = cachepath + 'bili动态/'
                 if not os.path.exists(returnpath):
                     os.makedirs(returnpath)
-                returnpath = returnpath + date + '_' + timenow + '_' + qq + '.png'
+                returnpath = returnpath + date + '_' + timenow + '_' + random_num + '.png'
                 draw_image.save(returnpath)
                 print("bili-push_绘图成功")
                 code = 2
@@ -1342,7 +1342,7 @@ def get_draw(data):
             card_image = bilidata["pic"]
             try:
                 emoji_infos = data["display"]["emoji_info"]["emoji_details"]
-            except:
+            except Exception as e:
                 emoji_infos = []
 
             # 开始绘图
@@ -1601,7 +1601,7 @@ def get_draw(data):
             returnpath = cachepath + 'bili动态/'
             if not os.path.exists(returnpath):
                 os.makedirs(returnpath)
-            returnpath = returnpath + date + '_' + timenow + '_' + qq + '.png'
+            returnpath = returnpath + date + '_' + timenow + '_' + random_num + '.png'
             draw_image.save(returnpath)
             print("bili-push_绘图成功")
             code = 2
@@ -1668,7 +1668,7 @@ async def _(bot: Bot, messageevent: MessageEvent):
                        '(id int(10) primary key, groupcode varchar(10), uid int(10))')
         cursor.close()
         conn.close()
-    except:
+    except Exception as e:
         print('已存在订阅数据库，开始读取数据')
 
     if command == "最新动态":
@@ -1679,7 +1679,7 @@ async def _(bot: Bot, messageevent: MessageEvent):
         try:
             command2 = int(command2)
             command2 = str(command2)
-        except:
+        except Exception as e:
             command2 = ""
         if command2 == "":
             code = 1
@@ -1713,7 +1713,7 @@ async def _(bot: Bot, messageevent: MessageEvent):
             try:
                 command2 = int(command2)
                 command2 = str(command2)
-            except:
+            except Exception as e:
                 command2 = ""
             if command2 == "":
                 code = 1
@@ -1784,7 +1784,7 @@ async def _(bot: Bot, messageevent: MessageEvent):
                             cursor.close()
                             conn.commit()
                             conn.close()
-                        except:
+                        except Exception as e:
                             print()
                         conn = sqlite3.connect(livedb)
                         cursor = conn.cursor()
@@ -1816,7 +1816,7 @@ async def _(bot: Bot, messageevent: MessageEvent):
             try:
                 command2 = int(command2)
                 command2 = str(command2)
-            except:
+            except Exception as e:
                 command2 = ""
             if command2 == "":
                 code = 1
@@ -1969,7 +1969,7 @@ async def run_every_6_minute():
                         "create table 'wait_push' (dynamicid int(10) primary key, uid varchar(10), returnpath varchar(20))")
                     cursor.close()
                     conn.close()
-                except:
+                except Exception as e:
                     print('已存在订阅数据库，开始读取数据')
 
                 conn = sqlite3.connect(livedb)
@@ -2023,7 +2023,7 @@ async def run_every_6_minute():
                         'create table ' + groupcode + '(botid VARCHAR(10) primary key, permission VARCHAR(20))')
                     cursor.close()
                     conn.close()
-                except:
+                except Exception as e:
                     print('已存在锁定数据库，开始读取数据')
                 conn = sqlite3.connect(heartdb)
                 cursor = conn.cursor()
@@ -2090,7 +2090,7 @@ async def run_every_6_minute():
                         "create table "+groupcode+" (dynamicid int(10) primary key, uid varchar(10))")
                     cursor.close()
                     conn.close()
-                except:
+                except Exception as e:
                     print('已存在订阅数据库，开始读取数据')
 
                 # 获取已推送的动态列表
@@ -2169,7 +2169,7 @@ async def run_every_6_minute():
                                 conn.commit()
                                 conn.close()
                                 print("发送私聊成功")
-                            except:
+                            except Exception as e:
                                 print('私聊内容发送失败：send_qq：' + str(send_qq) + ",message:"
                                       + message + ",retrnpath:" + returnpath)
                             time.sleep(stime)
@@ -2193,7 +2193,7 @@ async def run_every_6_minute():
                                 conn.commit()
                                 conn.close()
                                 print("发送群聊成功")
-                            except:
+                            except Exception as e:
                                 print(
                                     '群聊内容发送失败：groupcode：' + str(send_groupcode) + ",message:"
                                     + message + ",retrnpath:" + returnpath)
@@ -2203,4 +2203,3 @@ async def run_every_6_minute():
 
     print("run over")
     pass
-
