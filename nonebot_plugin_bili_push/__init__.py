@@ -1,6 +1,6 @@
 from nonebot.adapters.onebot.v11 import Bot, MessageEvent, GroupMessageEvent, MessageSegment
 from nonebot.adapters.onebot.v11 import GROUP_ADMIN, GROUP_OWNER
-from nonebot import require, on_command
+from nonebot import require, on_command, logger
 from nonebot.plugin import PluginMetadata
 import nonebot
 import os
@@ -166,7 +166,7 @@ def get_emoji(emoji):
                 return_image = Image.open(BytesIO(return_image.content))
                 return_image.save(cachepath)
             except Exception as e:
-                print("api出错，请联系开发者")
+                logger.info("api出错，请联系开发者")
                 # api出错时直接打印文字
                 return_image = Image.new("RGBA", (100, 100), color=(0, 0, 0, 0))
                 paste_image = draw_text(emoji, 100, 10)
@@ -323,7 +323,6 @@ def image_resize2(image, size: [int, int], overturn=False):
             image_background.paste(paste_image, (printx, 0))
     else:
         if w/h >= x/y:
-            print()
             rey = h
             rex = int(rey*x/y)
             paste_image = image.resize((rex, rey))
@@ -331,7 +330,6 @@ def image_resize2(image, size: [int, int], overturn=False):
             printy = 0
             image_background.paste(paste_image, (printx, printy))
         else:
-            print()
             rex = w
             rey = int(rex*y/x)
             paste_image = image.resize((rex, rey))
@@ -494,7 +492,7 @@ def get_draw(data):
     returnpath = ""
     run = 'on'  # 代码折叠
     if run == 'on':
-        print('bili-push_开始获取数据')
+        logger.info('bili-push_开始获取数据')
         biliname = str(data["desc"]["user_profile"]["info"]["uname"])
         biliface = str(data["desc"]["user_profile"]["info"]["face"])
         biliface_round = str(data["desc"]["user_profile"]["pendant"]["image"])
@@ -536,7 +534,7 @@ def get_draw(data):
                 origin_title = origin_data["title"]
                 origin_message = origin_data["desc"]
                 origin_video_image = origin_data["pic"]
-                print("bili-push_开始绘图")
+                logger.info("bili-push_开始绘图")
                 if runcode == 1:
                     fortsize = 30
                     font = ImageFont.truetype(font=fontfile, size=fortsize)
@@ -798,7 +796,7 @@ def get_draw(data):
                         os.makedirs(returnpath)
                     returnpath = returnpath + date + '_' + timenow + '_' + random_num + '.png'
                     draw_image.save(returnpath)
-                    print("bili-push_绘图成功")
+                    logger.info("bili-push_绘图成功")
                     code = 2
 
             # 图文动态
@@ -818,7 +816,7 @@ def get_draw(data):
                     emoji_infos = data["display"]["emoji_info"]["emoji_details"]
                 except Exception as e:
                     emoji_infos = []
-                print("bili-push_开始绘图")
+                logger.info("bili-push_开始绘图")
                 if runcode == 1:
                     fortsize = 30
                     font = ImageFont.truetype(font=fontfile, size=fortsize)
@@ -1010,7 +1008,7 @@ def get_draw(data):
                         os.makedirs(returnpath)
                     returnpath = returnpath + date + '_' + timenow + '_' + random_num + '.png'
                     draw_image.save(returnpath)
-                    print("bili-push_绘图成功")
+                    logger.info("bili-push_绘图成功")
                     code = 2
 
             # 文字动态
@@ -1021,7 +1019,7 @@ def get_draw(data):
                 origin_timestamp = time.localtime(origin_timestamp)
                 origin_timestamp = time.strftime("%Y年%m月%d日 %H:%M:%S", origin_timestamp)
                 origin_message = origin_data["item"]["content"]
-                print("bili-push_开始绘图")
+                logger.info("bili-push_开始绘图")
                 if runcode == 1:
                     fortsize = 30
                     font = ImageFont.truetype(font=fontfile, size=fortsize)
@@ -1129,7 +1127,7 @@ def get_draw(data):
                         os.makedirs(returnpath)
                     returnpath = returnpath + date + '_' + timenow + '_' + random_num + '.png'
                     draw_image.save(returnpath)
-                    print("bili-push_绘图成功")
+                    logger.info("bili-push_绘图成功")
                     code = 2
 
         # 图文动态
@@ -1146,7 +1144,7 @@ def get_draw(data):
                 emoji_infos = []
 
             if runcode == 1:  # 代码折叠
-                print("bili-push_开始绘图")
+                logger.info("bili-push_开始绘图")
                 # 计算图片长度
                 image_x = 900
                 image_y = 140  # add base y
@@ -1276,7 +1274,7 @@ def get_draw(data):
                     os.makedirs(returnpath)
                 returnpath = returnpath + date + '_' + timenow + '_' + random_num + '.png'
                 draw_image.save(returnpath)
-                print("bili-push_绘图成功")
+                logger.info("bili-push_绘图成功")
                 code = 2
 
         # 文字动态
@@ -1288,7 +1286,7 @@ def get_draw(data):
                 emoji_infos = []
 
             if runcode == 1:
-                print("bili-push_开始绘图")
+                logger.info("bili-push_开始绘图")
                 fortsize = 30
                 font = ImageFont.truetype(font=fontfile, size=fortsize)
 
@@ -1342,7 +1340,7 @@ def get_draw(data):
                     os.makedirs(returnpath)
                 returnpath = returnpath + date + '_' + timenow + '_' + random_num + '.png'
                 draw_image.save(returnpath)
-                print("bili-push_绘图成功")
+                logger.info("bili-push_绘图成功")
                 code = 2
 
         # 投稿视频
@@ -1614,9 +1612,9 @@ def get_draw(data):
                 os.makedirs(returnpath)
             returnpath = returnpath + date + '_' + timenow + '_' + random_num + '.png'
             draw_image.save(returnpath)
-            print("bili-push_绘图成功")
+            logger.info("bili-push_绘图成功")
             code = 2
-        print('---结束获取数据----------')
+        logger.info('---结束获取数据----------')
     return [code, returnpath]
 
 
@@ -1625,7 +1623,7 @@ get_new = on_command("最新动态", aliases={'添加订阅', '删除订阅', '�
 
 @get_new.handle()
 async def _(bot: Bot, messageevent: MessageEvent):
-    print("bili-push_command")
+    logger.info("bili-push_command")
     returnpath = ""
     code = 0
     qq = str(messageevent.get_user_id())
@@ -1680,10 +1678,10 @@ async def _(bot: Bot, messageevent: MessageEvent):
         cursor.close()
         conn.close()
     except Exception as e:
-        print('已存在订阅数据库，开始读取数据')
+        logger.info('已存在订阅数据库，开始读取数据')
 
     if command == "最新动态":
-        print("command:查询最新动态")
+        logger.info("command:查询最新动态")
         code = 0
         if "UID:" in command2:
             command2 = command2.removeprefix("UID:")
@@ -1697,27 +1695,27 @@ async def _(bot: Bot, messageevent: MessageEvent):
             message = "请添加uid来查询最新动态"
         else:
             uid = command2
-            print('-----------------------开始获取信息----------')
+            logger.info('-----------------------开始获取信息----------')
             url = 'https://api.vc.bilibili.com/dynamic_svr/v1/dynamic_svr/space_history?host_uid=' + uid
             s = json.dumps({'key1': 'value1', 'key2': 'value2'})
             h = {'Content-Type': 'application/x-www-form-urlencoded'}
             returnjson = requests.post(url, data=s, headers=h).text
             returnjson = json.loads(returnjson)
             returncode = returnjson["code"]
-            print('returncode:' + str(returncode))
+            logger.info('returncode:' + str(returncode))
             if returncode == 0:
-                print('获取动态图片并发送')
+                logger.info('获取动态图片并发送')
                 # 获取动态图片并发送
                 draw_info = get_draw(returnjson["data"]["cards"][0])
                 code = draw_info[0]
                 returnpath = draw_info[1]
             else:
-                print('returncode!=0')
+                logger.info('returncode!=0')
                 code = 1
                 message = "获取动态失败"
     elif command == "添加订阅":
         if qq in adminqq:
-            print("command:添加订阅")
+            logger.info("command:添加订阅")
             code = 0
             if "UID:" in command2:
                 command2 = command2.removeprefix("UID:")
@@ -1742,7 +1740,7 @@ async def _(bot: Bot, messageevent: MessageEvent):
                 conn.close()
 
                 if subscription is None:
-                    print("无订阅，添加订阅")
+                    logger.info("无订阅，添加订阅")
                     # 计算写入id
                     subid = 1
                     num = 60
@@ -1775,7 +1773,7 @@ async def _(bot: Bot, messageevent: MessageEvent):
                     conn.close()
 
                     # 将历史动态存到数据库中
-                    print('关注成功，将历史动态存到数据库中')
+                    logger.info('关注成功，将历史动态存到数据库中')
                     url = 'https://api.vc.bilibili.com/dynamic_svr/v1/dynamic_svr/space_history?host_uid=' + uid
                     s = json.dumps({'key1': 'value1', 'key2': 'value2'})
                     h = {'Content-Type': 'application/x-www-form-urlencoded'}
@@ -1783,7 +1781,7 @@ async def _(bot: Bot, messageevent: MessageEvent):
                     returnjson = json.loads(returnjson)
                     returncode = returnjson["code"]
                     if returncode == 0:
-                        print('获取动态图片并发送')
+                        logger.info('获取动态图片并发送')
                         # 获取动态id并保存
                         return_datas = returnjson["data"]["cards"]
 
@@ -1820,7 +1818,7 @@ async def _(bot: Bot, messageevent: MessageEvent):
             message = "您无权限操作哦"
     elif command == "删除订阅":
         if qq in adminqq:
-            print("command:删除订阅")
+            logger.info("command:删除订阅")
             code = 0
             if "UID:" in command2:
                 command2 = command2.removeprefix("UID:")
@@ -1878,7 +1876,6 @@ async def _(bot: Bot, messageevent: MessageEvent):
                 uid = str(subscription[2])
                 message += "UID:" + uid + "\n"
     elif command == "帮助":
-        print()
         code = 1
         message = "Bili_Push：\n/添加订阅\n/删除订阅\n/查看订阅"
 
@@ -1896,7 +1893,7 @@ minute = "*/" + waittime
 
 @scheduler.scheduled_job("cron", minute=minute, id="job_0")
 async def run_every_6_minute():
-    print("run bili push find")
+    logger.info("run bili push find")
     # ############获取动态更新，并绘制############
     import time
     date = str(time.strftime("%Y-%m-%d", time.localtime()))
@@ -1935,13 +1932,13 @@ async def run_every_6_minute():
         cursor.close()
         conn.close()
     except Exception as e:
-        print('已存在订阅数据库，开始读取数据')
+        logger.info('已存在订阅数据库，开始读取数据')
 
     # ############获取动态############s
     run = True  # 代码折叠
     if run:
-        print('---------获取更新的动态----------')
-        print("获取订阅列表")
+        logger.info('---------获取更新的动态----------')
+        logger.info("获取订阅列表")
 
         conn = sqlite3.connect(livedb)
         cursor = conn.cursor()
@@ -1952,7 +1949,7 @@ async def run_every_6_minute():
         conn.close()
 
         if not subscriptions:
-            print("无订阅")
+            logger.info("无订阅")
         else:
             subscriptionlist = []
             for subscription in subscriptions:
@@ -1970,17 +1967,17 @@ async def run_every_6_minute():
                             subscriptionlist.append(uid)
 
             for uid in subscriptionlist:
-                print('-----------------------开始获取信息----------')
+                logger.info('-----------------------开始获取信息----------')
                 url = 'https://api.vc.bilibili.com/dynamic_svr/v1/dynamic_svr/space_history?host_uid=' + uid
                 s = json.dumps({'key1': 'value1', 'key2': 'value2'})
                 h = {'Content-Type': 'application/x-www-form-urlencoded'}
                 returnjson = requests.post(url, data=s, headers=h).text
                 returnjson = json.loads(returnjson)
                 returncode = returnjson["code"]
-                print('returncode:' + str(returncode))
+                logger.info('returncode:' + str(returncode))
                 return_datas = returnjson["data"]
                 return_datas = return_datas["cards"]
-                print('获取数据成功')
+                logger.info('获取数据成功')
                 # 比较已保存内容
                 try:
                     # 缓存文件，存储待发送动态 如果文件不存在，会自动在当前目录中创建
@@ -1991,7 +1988,7 @@ async def run_every_6_minute():
                     cursor.close()
                     conn.close()
                 except Exception as e:
-                    print('已存在订阅数据库，开始读取数据')
+                    logger.info('已存在订阅数据库，开始读取数据')
 
                 conn = sqlite3.connect(livedb)
                 cursor = conn.cursor()
@@ -2002,9 +1999,9 @@ async def run_every_6_minute():
                     data = cursor.fetchone()
                     if not data:
                         return_draw = get_draw(return_data)
-                        print(str(return_draw))
+                        logger.info(str(return_draw))
                         if return_draw[0] != 2:
-                            print("不支持类型")
+                            logger.info("不支持类型")
                         else:
                             returnpath = return_draw[1]
                             # return_data = str(return_data)
@@ -2027,7 +2024,7 @@ async def run_every_6_minute():
         conn.close()
 
         if not subscriptions:
-            print("无订阅")
+            logger.info("无订阅")
         else:
             for subscription in subscriptions:
                 groupcode = subscription[1]
@@ -2035,9 +2032,8 @@ async def run_every_6_minute():
                 # 判断是否本bot以及是否主bot
                 send = True
                 if config_botswift:
-                    send = False
                     # 读取主bot
-                    botswift = "off"
+                    send = False
                     try:
                         # 数据库文件 如果文件不存在，会自动在当前目录中创建
                         conn = sqlite3.connect(heartdb)
@@ -2047,7 +2043,7 @@ async def run_every_6_minute():
                         cursor.close()
                         conn.close()
                     except Exception as e:
-                        print('已存在锁定数据库，开始读取数据')
+                        logger.info('已存在心跳数据库，开始读取数据')
                     conn = sqlite3.connect(heartdb)
                     cursor = conn.cursor()
                     cursor.execute('SELECT * FROM ' + groupcode + ' WHERE permission = "10"')
@@ -2062,10 +2058,10 @@ async def run_every_6_minute():
                         conn.commit()
                         conn.close()
 
-                        botswift = 'on'
+                        send = True
                     else:
                         if group_data[0] == botid:
-                            botswift = 'on'
+                            send = True
                         else:
                             conn = sqlite3.connect(heartdb)
                             cursor = conn.cursor()
@@ -2076,7 +2072,7 @@ async def run_every_6_minute():
 
                             if data is not None:
                                 if int(data[2]) >= 5:
-                                    botswift = 'on'
+                                    send = True
 
                             conn = sqlite3.connect(heartdb)
                             cursor = conn.cursor()
@@ -2093,17 +2089,16 @@ async def run_every_6_minute():
                                 conn.commit()
                                 conn.close()
 
-                    if botswift == "on":
-                        if "p" in groupcode:
-                            groupcode = groupcode.removeprefix("gp")
-                            if groupcode in friendlist:
-                                send = True
-                            groupcode = "gp" + groupcode
-                        else:
-                            groupcode = groupcode.removeprefix("g")
-                            if groupcode in grouplist:
-                                send = True
-                            groupcode = "g" + groupcode
+                if "p" in groupcode:
+                    groupcode = groupcode.removeprefix("gp")
+                    if groupcode not in friendlist:
+                        send = False
+                    groupcode = "gp" + groupcode
+                else:
+                    groupcode = groupcode.removeprefix("g")
+                    if groupcode not in grouplist:
+                        send = False
+                    groupcode = "g" + groupcode
 
                 if send:
                     try:
@@ -2115,7 +2110,7 @@ async def run_every_6_minute():
                         cursor.close()
                         conn.close()
                     except Exception as e:
-                        print('已存在订阅数据库，开始读取数据')
+                        logger.info('已存在订阅数据库，开始读取数据')
 
                     # 获取已推送的动态列表
                     conn = sqlite3.connect(livedb)
@@ -2142,7 +2137,7 @@ async def run_every_6_minute():
 
                     pushlist = []
                     if not dynamicids:
-                        print("if not pushed_datas:")
+                        logger.info("if not pushed_datas:")
                         conn = sqlite3.connect(livedb)
                         cursor = conn.cursor()
                         for data in datas:
@@ -2162,7 +2157,7 @@ async def run_every_6_minute():
                             if new_dynamicid not in dynamicids:
                                 if len(pushlist) <= 2:  # 限制单次发送条数
                                     pushlist.append(new_dynamicid)
-                    print("未推送的动态" + str(pushlist))
+                    logger.info("未推送的动态" + str(pushlist))
 
                     # 分别发送图片，并保存为已推送
                     for dynamicid in pushlist:
@@ -2192,21 +2187,21 @@ async def run_every_6_minute():
                                     cursor.close()
                                     conn.commit()
                                     conn.close()
-                                    print("发送私聊成功")
+                                    logger.info("发送私聊成功")
                                 except Exception as e:
-                                    print('私聊内容发送失败：send_qq：' + str(send_qq) + ",message:"
+                                    logger.info('私聊内容发送失败：send_qq：' + str(send_qq) + ",message:"
                                           + message + ",retrnpath:" + returnpath)
                                 time.sleep(stime)
                             else:
-                                print("bot未入群")
+                                logger.info("bot未入群")
 
                         else:
                             send_groupcode = groupcode.removeprefix("g")
-                            print("groupcode:")
+                            logger.info("groupcode:")
                             if send_groupcode in grouplist:
                                 # bot已添加好友，发送消息
                                 try:
-                                    print("开始发送群聊")
+                                    logger.info("开始发送群聊")
                                     await nonebot.get_bot().send_group_msg(group_id=send_groupcode, message=msg)
                                     conn = sqlite3.connect(livedb)
                                     cursor = conn.cursor()
@@ -2216,14 +2211,14 @@ async def run_every_6_minute():
                                     cursor.close()
                                     conn.commit()
                                     conn.close()
-                                    print("发送群聊成功")
+                                    logger.info("发送群聊成功")
                                 except Exception as e:
-                                    print(
+                                    logger.info(
                                         '群聊内容发送失败：groupcode：' + str(send_groupcode) + ",message:"
                                         + message + ",retrnpath:" + returnpath)
                                 time.sleep(stime)
                             else:
-                                print("bot未入群")
+                                logger.info("bot未入群")
 
-    print("run over")
+    logger.info("run over")
     pass
