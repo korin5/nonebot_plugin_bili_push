@@ -482,16 +482,17 @@ def get_draw(data):
     time_m = str(time.strftime("%M", time.localtime()))
     time_s = str(time.strftime("%S", time.localtime()))
     timeshort = time_h + time_m + time_s
-    cachepath = basepath + "cache/draw/" + date_year + '/' + date_month + '/' + date_day + '/'
+    cachepath = basepath + f"cache/draw/{date_year}/{date_month}/{date_day}/"
     if not os.path.exists(cachepath):
         os.makedirs(cachepath)
     random_num = str(random.randint(10000, 99999))
     addimage = ""
-    runcode = 1
+    run = True  # 代码折叠助手
     code = 0
     returnpath = ""
 
-    logger.info('bili-push_开始获取数据')
+    dynamicid = str(data["desc"]["dynamic_id"])
+    logger.info(f"bili-push_draw_开始获取数据-{dynamicid}")
     biliname = str(data["desc"]["user_profile"]["info"]["uname"])
     biliface = str(data["desc"]["user_profile"]["info"]["face"])
     biliface_round = str(data["desc"]["user_profile"]["pendant"]["image"])
@@ -511,293 +512,224 @@ def get_draw(data):
     fontfile = get_file_path("腾祥嘉丽中圆.ttf")
     font = ImageFont.truetype(font=fontfile, size=fortsize)
 
-    # ### 获取动态文字  #####################
-    message_title = ""
-    message_body = ""
-    message_url = "bilibili.com/opus/" + dynamicid
-    message_images = []
-    # 转发
-    if bilitype == 1:
-        origin_type = bilidata["item"]["orig_type"]
-        card_message = bilidata["item"]["content"]
-        origin_data = bilidata["origin"]
-        origin_data = json.loads(origin_data)
+    try:
+        # ### 获取动态文字  #####################
+        message_title = ""
+        message_body = ""
+        message_url = "bilibili.com/opus/" + dynamicid
+        message_images = []
+        # 转发
+        if bilitype == 1:
+            origin_type = bilidata["item"]["orig_type"]
+            card_message = bilidata["item"]["content"]
+            origin_data = bilidata["origin"]
+            origin_data = json.loads(origin_data)
+            # 视频
+            if origin_type == 8:
+                origin_title = origin_data["title"]
+                if len(origin_title) > 40:
+                    origin_title = origin_title[0:40] + "…"
+                origin_message = origin_data["desc"]
+                if len(origin_message) > 40:
+                    origin_message = origin_message[0:40] + "…"
+                message_title = biliname + "转发了视频"
+                message_body = card_message + "\n转发视频：\n" + origin_title + \
+                                              "\n" + origin_message
+                message_images.append(origin_data["pic"])
+
+            # 图文动态
+            elif origin_type == 2:
+                message_title = biliname + "转发了动态"
+                message_body = card_message + "\n转发动态：\n" + origin_data["item"]["description"]
+                origin_images = origin_data["item"]["pictures"]
+                for origin_image in origin_images:
+                    message_images.append(origin_image["img_src"])
+
+            # 文字动态
+            elif origin_type == 4:
+                message_title = biliname + "转发了动态"
+                message_body = card_message + "\n转发动态：\n" + origin_data["item"]["content"]
+
+            # 文章动态
+            elif origin_type == 64:
+                message_title = biliname + "转发了文章"
+                origin_message = origin_data["summary"]
+                if len(origin_message) > 60:
+                    origin_message = origin_message[0:58] + "……"
+                message_body = card_message + "\n转发文章：\n" + origin_data["title"] + "\n" + origin_message
+
         # 视频
-        if origin_type == 8:
-            origin_title = origin_data["title"]
-            if len(origin_title) > 40:
-                origin_title = origin_title[1:40] + "…"
-            origin_message = origin_data["desc"]
-            if len(origin_message) > 40:
-                origin_message = origin_message[1:40] + "…"
-            message_title = biliname + "转发了视频"
-            message_body = card_message + "\n转发视频：\n" + origin_title + \
-                                          "\n" + origin_message
-            message_images.append(origin_data["pic"])
+        elif bilitype == 8:
+            card_message = bilidata["dynamic"]
+            card_title = bilidata["title"]
+            card_vmessage = bilidata["desc"]
+            message_title = biliname + "投稿了视频"
+            message_body = card_message + "\n" + card_title + "\n" + card_vmessage
+            message_images.append(bilidata["pic"])
 
         # 图文动态
-        elif origin_type == 2:
-            message_title = biliname + "转发了动态"
-            message_body = card_message + "\n转发动态：\n" + origin_data["item"]["description"]
-            origin_images = origin_data["item"]["pictures"]
-            for origin_image in origin_images:
-                message_images.append(origin_image["img_src"])
+        elif bilitype == 2:
+            message_title = biliname + "发布了动态"
+            message_body = bilidata["item"]["description"]
+            card_images = bilidata["item"]["pictures"]
+            for card_image in card_images:
+                message_images.append(card_image["img_src"])
 
         # 文字动态
-        elif origin_type == 4:
-            message_title = biliname + "转发了动态"
-            message_body = card_message + "\n转发动态：\n" + origin_data["item"]["content"]
+        elif bilitype == 4:
+            message_title = biliname + "发布了动态"
+            message_body = bilidata["item"]["content"]
 
-    # 视频
-    elif bilitype == 8:
-        card_message = bilidata["dynamic"]
-        card_title = bilidata["title"]
-        card_vmessage = bilidata["desc"]
-        message_title = biliname + "投稿了视频"
-        message_body = card_message + "\n" + card_title + "\n" + card_vmessage
-        message_images.append(bilidata["pic"])
+        # ### 绘制动态 #####################
+        # 转发动态
+        if bilitype == 1:
+            origin_biliname = bilidata["origin_user"]["info"]["uname"]
+            origin_biliface = bilidata["origin_user"]["info"]["face"]
+            card_message = bilidata["item"]["content"]
+            origin_data = bilidata["origin"]
+            origin_data = json.loads(origin_data)
+            origin_type = bilidata["item"]["orig_type"]
+            try:
+                origin_emoji_infos = data["display"]["origin"]["emoji_info"]["emoji_details"]
+            except Exception as e:
+                origin_emoji_infos = []
 
-    # 图文动态
-    elif bilitype == 2:
-        message_title = biliname + "发布了动态"
-        message_body = bilidata["item"]["description"]
-        card_images = bilidata["item"]["pictures"]
-        for card_image in card_images:
-            message_images.append(card_image["img_src"])
+            # 投稿视频
+            if origin_type == 8:
+                origin_timestamp = origin_data["ctime"]
+                origin_timestamp = time.localtime(origin_timestamp)
+                origin_timestamp = time.strftime("%Y年%m月%d日 %H:%M:%S", origin_timestamp)
+                origin_title = origin_data["title"]
+                origin_message = origin_data["desc"]
+                origin_video_image = origin_data["pic"]
+                logger.info("bili-push_draw_18_开始绘图")
+                if run:
+                    fortsize = 30
+                    font = ImageFont.truetype(font=fontfile, size=fortsize)
+                    origin_fortsize = 27
+                    origin_font = ImageFont.truetype(font=fontfile, size=origin_fortsize)
 
-    # 文字动态
-    elif bilitype == 4:
-        message_title = biliname + "发布了动态"
-        message_body = bilidata["item"]["content"]
+                    image_x = 900
+                    image_y = 140  # add base y
+                    image_y += 125 + 35  # add hear and space
+                    # 添加文字长度
+                    paste_image = draw_text(card_message,
+                                            size=30,
+                                            textlen=24,
+                                            biliemoji_infos=emoji_infos,
+                                            calculate=True)
+                    w, h = paste_image.size
+                    image_y += h
+                    # 添加转发内容
+                    origin_len_y = 120 + 90
+                    # 添加转发的视频长度
+                    origin_len_y += 220 + 20
+                    # 将转发长度添加到总长度中
+                    image_y += origin_len_y
 
-    # ### 绘制动态 #####################
-    # 转发动态
-    if bilitype == 1:
-        card_message = bilidata["item"]["content"]
-        origin_data = bilidata["origin"]
-        origin_data = json.loads(origin_data)
-        origin_type = bilidata["item"]["orig_type"]
-        try:
-            origin_emoji_infos = data["display"]["origin"]["emoji_info"]["emoji_details"]
-        except Exception as e:
-            origin_emoji_infos = []
+                    # 开始绘制图像
+                    image_x = int(image_x)
+                    image_y = int(image_y)
+                    draw_image = new_background(image_x, image_y)
+                    draw = ImageDraw.Draw(draw_image)
+                    # 开始往图片添加内容
+                    # 添加头像
+                    response = requests.get(biliface)
+                    image_face = Image.open(BytesIO(response.content))
+                    image_face = image_face.resize((125, 125))
+                    imageround = get_emoji("imageround")
+                    imageround = imageround.resize((129, 129))
+                    draw_image.paste(imageround, (73, 73), mask=imageround)
+                    imageround = imageround.resize((125, 125))
+                    draw_image.paste(image_face, (75, 75), mask=imageround)
 
-        # 投稿视频
-        if origin_type == 8:
-            origin_biliname = origin_data["owner"]["name"]
-            origin_biliface = origin_data["owner"]["face"]
-            origin_timestamp = origin_data["ctime"]
-            origin_timestamp = time.localtime(origin_timestamp)
-            origin_timestamp = time.strftime("%Y年%m月%d日 %H:%M:%S", origin_timestamp)
-            origin_title = origin_data["title"]
-            origin_message = origin_data["desc"]
-            origin_video_image = origin_data["pic"]
-            logger.info("bili-push_开始绘图")
-            if runcode == 1:
-                fortsize = 30
-                font = ImageFont.truetype(font=fontfile, size=fortsize)
-                origin_fortsize = 27
-                origin_font = ImageFont.truetype(font=fontfile, size=origin_fortsize)
+                    # 添加名字
+                    cache_font = ImageFont.truetype(font=fontfile, size=35)
+                    draw.text(xy=(230, 85), text=biliname, fill=(0, 0, 0), font=cache_font)
 
-                image_x = 900
-                image_y = 140  # add base y
-                image_y += 125 + 35  # add hear and space
-                # 添加文字长度
-                paste_image = draw_text(card_message,
-                                        size=30,
-                                        textlen=24,
-                                        biliemoji_infos=emoji_infos,
-                                        calculate=True)
-                w, h = paste_image.size
-                image_y += h
-                # 添加转发内容
-                origin_len_y = 120 + 90
-                # 添加转发的视频长度
-                origin_len_y += 220 + 20
-                # 将转发长度添加到总长度中
-                image_y += origin_len_y
+                    # 添加日期
+                    draw.text(xy=(230, 145), text=timestamp, fill=(100, 100, 100), font=font)
 
-                # 开始绘制图像
-                image_x = int(image_x)
-                image_y = int(image_y)
-                draw_image = new_background(image_x, image_y)
-                draw = ImageDraw.Draw(draw_image)
-                # 开始往图片添加内容
-                # 添加头像
-                response = requests.get(biliface)
-                image_face = Image.open(BytesIO(response.content))
-                image_face = image_face.resize((125, 125))
-                imageround = get_emoji("imageround")
-                imageround = imageround.resize((129, 129))
-                draw_image.paste(imageround, (73, 73), mask=imageround)
-                imageround = imageround.resize((125, 125))
-                draw_image.paste(image_face, (75, 75), mask=imageround)
+                    # 添加动态内容
+                    x = 75
+                    y = 230
+                    paste_image = draw_text(card_message,
+                                            size=30,
+                                            textlen=24,
+                                            biliemoji_infos=emoji_infos)
+                    draw_image.paste(paste_image, (x, y), mask=paste_image)
+                    w, h = paste_image.size
+                    y += h
+                    x = 65
+                    # 添加转发内容
+                    # 添加转发消息框
+                    paste_image = Image.new("RGB", (776, origin_len_y + 4), "#FFFFFF")
+                    paste_image = circle_corner(paste_image, 15)
+                    draw_image.paste(paste_image, (x - 2, y - 2), mask=paste_image)
 
-                # 添加名字
-                cache_font = ImageFont.truetype(font=fontfile, size=35)
-                draw.text(xy=(230, 85), text=biliname, fill=(0, 0, 0), font=cache_font)
+                    # 添加转发消息底图
+                    paste_image = Image.new("RGB", (772, origin_len_y), "#f8fbfd")
+                    paste_image = circle_corner(paste_image, 15)
+                    draw_image.paste(paste_image, (x, y), mask=paste_image)
 
-                # 添加日期
-                draw.text(xy=(230, 145), text=timestamp, fill=(100, 100, 100), font=font)
+                    # 添加转发头像
+                    response = requests.get(origin_biliface)
+                    image_face = Image.open(BytesIO(response.content))
+                    image_face = image_face.resize((110, 110))
+                    imageround = get_emoji("imageround")
+                    imageround = imageround.resize((114, 114))
+                    draw_image.paste(imageround, (x + 48, y + 48), mask=imageround)
+                    imageround = imageround.resize((110, 110))
+                    draw_image.paste(image_face, (x + 50, y + 50), mask=imageround)
 
-                # 添加动态内容
-                x = 75
-                y = 230
-                paste_image = draw_text(card_message,
-                                        size=30,
-                                        textlen=24,
-                                        biliemoji_infos=emoji_infos)
-                draw_image.paste(paste_image, (x, y), mask=paste_image)
-                w, h = paste_image.size
-                y += h
-                x = 65
-                # 添加转发内容
-                # 添加转发消息框
-                paste_image = Image.new("RGB", (776, origin_len_y + 4), "#FFFFFF")
-                paste_image = circle_corner(paste_image, 15)
-                draw_image.paste(paste_image, (x - 2, y - 2), mask=paste_image)
+                    # 添加名字
+                    cache_font = ImageFont.truetype(font=fontfile, size=30)
+                    draw.text(xy=(x + 190, y + 70), text=origin_biliname, fill=(0, 0, 0), font=cache_font)
 
-                # 添加转发消息底图
-                paste_image = Image.new("RGB", (772, origin_len_y), "#f8fbfd")
-                paste_image = circle_corner(paste_image, 15)
-                draw_image.paste(paste_image, (x, y), mask=paste_image)
+                    # 添加日期
+                    cache_font = ImageFont.truetype(font=fontfile, size=26)
+                    draw.text(xy=(x + 190, y + 120), text=origin_timestamp, fill=(100, 100, 100), font=cache_font)
 
-                # 添加转发头像
-                response = requests.get(origin_biliface)
-                image_face = Image.open(BytesIO(response.content))
-                image_face = image_face.resize((110, 110))
-                imageround = get_emoji("imageround")
-                imageround = imageround.resize((114, 114))
-                draw_image.paste(imageround, (x + 48, y + 48), mask=imageround)
-                imageround = imageround.resize((110, 110))
-                draw_image.paste(image_face, (x + 50, y + 50), mask=imageround)
+                    # 添加转发的内容
+                    x += 20
+                    y += 190
 
-                # 添加名字
-                cache_font = ImageFont.truetype(font=fontfile, size=30)
-                draw.text(xy=(x + 190, y + 70), text=origin_biliname, fill=(0, 0, 0), font=cache_font)
+                    # 添加视频框
+                    paste_image = Image.new("RGB", (730, 220), "#FFFFFF")
+                    paste_image = circle_corner(paste_image, 15)
+                    draw_image.paste(paste_image, (x, y), mask=paste_image)
+                    # 添加视频图像
+                    response = requests.get(origin_video_image)
+                    paste_image = Image.open(BytesIO(response.content))
+                    paste_image = paste_image.resize((346, 216))
+                    paste_image = circle_corner(paste_image, 15)
+                    draw_image.paste(paste_image, (x + 2, y + 2), mask=paste_image)
+                    # 添加视频标题
+                    x += 366
+                    y += 20
+                    fortsize = 27
+                    cache_font = ImageFont.truetype(font=fontfile, size=27)
 
-                # 添加日期
-                cache_font = ImageFont.truetype(font=fontfile, size=26)
-                draw.text(xy=(x + 190, y + 120), text=origin_timestamp, fill=(100, 100, 100), font=cache_font)
-
-                # 添加转发的内容
-                x += 20
-                y += 190
-
-                # 添加视频框
-                paste_image = Image.new("RGB", (730, 220), "#FFFFFF")
-                paste_image = circle_corner(paste_image, 15)
-                draw_image.paste(paste_image, (x, y), mask=paste_image)
-                # 添加视频图像
-                response = requests.get(origin_video_image)
-                paste_image = Image.open(BytesIO(response.content))
-                paste_image = paste_image.resize((346, 216))
-                paste_image = circle_corner(paste_image, 15)
-                draw_image.paste(paste_image, (x + 2, y + 2), mask=paste_image)
-                # 添加视频标题
-                x += 366
-                y += 20
-                fortsize = 27
-                cache_font = ImageFont.truetype(font=fontfile, size=27)
-
-                print_x = -1
-                print_y = 0
-                num = 0
-                jump_num = 0
-                textnum = 0
-                for text in origin_title:
-                    textnum += 1
-                    if jump_num > 0:
-                        jump_num -= 1
-                    else:
-                        print_x += 1
-                        num += 1
-                        # 打印换行
-                        if print_y >= 1 and print_x == 11:
-                            text = "…"
-                        if print_y >= 1 and print_x >= 12:
-                            text = ""
-                        elif print_y >= 2:
-                            text = ""
-                        if print_x > 12 or text == "\n":
-                            num = 1
-                            print_y += 1.2
-                            print_x = 0
-                            if text == "\n":
-                                print_x = -1
-
-                        # 检测biliemoji
-                        emoji_code = ""
-                        if text == "[":
-                            testnum = 1
-                            while testnum <= 55:
-                                testnum += 1
-                                findnum = textnum + testnum
-                                if origin_title[findnum] == "-":
-                                    testnum = 60
-                                    emoji_code = ""
-                                elif origin_title[findnum] == "]":
-                                    emoji_code = "[" + origin_title[textnum:findnum] + "]"
-                                    jump_num = len(emoji_code) - 1
-                                    testnum = 30
-                            if emoji_code != "":
-                                # 粘贴biliemoji
-                                for emoji_info in origin_emoji_infos:
-                                    emoji_name = emoji_info["emoji_name"]
-                                    if emoji_name == emoji_code:
-                                        emoji_url = emoji_info["url"]
-                                        response = requests.get(emoji_url)
-                                        paste_image = Image.open(BytesIO(response.content))
-                                        paste_image = paste_image.resize((int(fortsize * 1.2), int(fortsize * 1.2)))
-                                        draw_image.paste(paste_image,
-                                                         (int(x + print_x * fortsize), int(y + print_y * fortsize)))
-                                        print_x += 0.5
-
-                        if emoji_code == "":
-                            # 检测是否半格字符
-                            if not is_emoji(font):
-
-                                # 打印文字
-                                draw.text(xy=(int(x + print_x * fortsize), int(y + print_y * fortsize)), text=text,
-                                          fill=(0, 0, 0), font=cache_font)
-                                if text in half_text:
-                                    print_x -= 0.4
-                            else:
-                                # 打印表情
-                                try:
-                                    paste_image = get_emoji(font)
-                                    paste_image = paste_image.resize((int(fortsize * 1.1), int(fortsize * 1.1)))
-                                    draw_image.paste(paste_image,
-                                                     (int(x + print_x * fortsize), int(y + print_y * fortsize)))
-                                except Exception as e:
-                                    draw.text(xy=(int(x + print_x * fortsize), int(y + print_y * fortsize)),
-                                              text=text, fill=(0, 0, 0), font=cache_font)
-                # 添加视频简介
-                y += 70
-                fortsize = 25
-                cache_font = ImageFont.truetype(font=fontfile, size=25)
-
-                print_x = -1
-                print_y = 0
-                num = 0
-                jump_num = 0
-                textnum = 0
-                for text in origin_message:
-                    textnum += 1
-                    if jump_num > 0:
-                        jump_num -= 1
-                    else:
-                        print_x += 1
-                        num += 1
-                        if print_y >= 2 and print_x == 12:
-                            text = "…"
-                        if print_y >= 2 and print_x >= 13:
-                            text = ""
-                        elif print_y >= 4:
-                            text = ""
+                    print_x = -1
+                    print_y = 0
+                    num = 0
+                    jump_num = 0
+                    textnum = 0
+                    for text in origin_title:
+                        textnum += 1
+                        if jump_num > 0:
+                            jump_num -= 1
                         else:
+                            print_x += 1
+                            num += 1
                             # 打印换行
-                            if print_x > 14 or text == "\n":
+                            if print_y >= 1 and print_x == 11:
+                                text = "…"
+                            if print_y >= 1 and print_x >= 12:
+                                text = ""
+                            elif print_y >= 2:
+                                text = ""
+                            if print_x > 12 or text == "\n":
                                 num = 1
                                 print_y += 1.2
                                 print_x = 0
@@ -811,11 +743,11 @@ def get_draw(data):
                                 while testnum <= 55:
                                     testnum += 1
                                     findnum = textnum + testnum
-                                    if origin_message[findnum] == "-":
+                                    if origin_title[findnum] == "-":
                                         testnum = 60
                                         emoji_code = ""
-                                    elif origin_message[findnum] == "]":
-                                        emoji_code = "[" + origin_message[textnum:findnum] + "]"
+                                    elif origin_title[findnum] == "]":
+                                        emoji_code = "[" + origin_title[textnum:findnum] + "]"
                                         jump_num = len(emoji_code) - 1
                                         testnum = 30
                                 if emoji_code != "":
@@ -826,264 +758,730 @@ def get_draw(data):
                                             emoji_url = emoji_info["url"]
                                             response = requests.get(emoji_url)
                                             paste_image = Image.open(BytesIO(response.content))
-                                            paste_image = paste_image.resize(
-                                                (int(fortsize * 1.2), int(fortsize * 1.2)))
+                                            paste_image = paste_image.resize((int(fortsize * 1.2), int(fortsize * 1.2)))
                                             draw_image.paste(paste_image,
-                                                             (int(x + print_x * fortsize),
-                                                              int(y + print_y * fortsize)))
+                                                             (int(x + print_x * fortsize), int(y + print_y * fortsize)))
                                             print_x += 0.5
 
                             if emoji_code == "":
                                 # 检测是否半格字符
                                 if not is_emoji(font):
+
                                     # 打印文字
-                                    draw.text(xy=(int(x + print_x * fortsize), int(y + print_y * fortsize)),
-                                              text=text,
-                                              fill=(100, 100, 100), font=cache_font)
+                                    draw.text(xy=(int(x + print_x * fortsize), int(y + print_y * fortsize)), text=text,
+                                              fill=(0, 0, 0), font=cache_font)
                                     if text in half_text:
                                         print_x -= 0.4
                                 else:
                                     # 打印表情
-                                    paste_image = get_emoji(font)
-                                    paste_image = paste_image.resize((int(fortsize * 1.1), int(fortsize * 1.1)))
-                                    draw_image.paste(paste_image,
-                                                     (int(x + print_x * fortsize), int(y + print_y * fortsize)))
+                                    try:
+                                        paste_image = get_emoji(font)
+                                        paste_image = paste_image.resize((int(fortsize * 1.1), int(fortsize * 1.1)))
+                                        draw_image.paste(paste_image,
+                                                         (int(x + print_x * fortsize), int(y + print_y * fortsize)))
+                                    except Exception as e:
+                                        draw.text(xy=(int(x + print_x * fortsize), int(y + print_y * fortsize)),
+                                                  text=text, fill=(0, 0, 0), font=cache_font)
+                    # 添加视频简介
+                    y += 70
+                    fortsize = 25
+                    cache_font = ImageFont.truetype(font=fontfile, size=25)
 
-                returnpath = cachepath + 'bili动态/'
-                if not os.path.exists(returnpath):
-                    os.makedirs(returnpath)
-                returnpath = returnpath + date + '_' + timenow + '_' + random_num + '.png'
-                draw_image.save(returnpath)
-                logger.info("bili-push_绘图成功")
-                code = 2
+                    print_x = -1
+                    print_y = 0
+                    num = 0
+                    jump_num = 0
+                    textnum = 0
+                    for text in origin_message:
+                        textnum += 1
+                        if jump_num > 0:
+                            jump_num -= 1
+                        else:
+                            print_x += 1
+                            num += 1
+                            if print_y >= 2 and print_x == 12:
+                                text = "…"
+                            if print_y >= 2 and print_x >= 13:
+                                text = ""
+                            elif print_y >= 4:
+                                text = ""
+                            else:
+                                # 打印换行
+                                if print_x > 14 or text == "\n":
+                                    num = 1
+                                    print_y += 1.2
+                                    print_x = 0
+                                    if text == "\n":
+                                        print_x = -1
+
+                                # 检测biliemoji
+                                emoji_code = ""
+                                if text == "[":
+                                    testnum = 1
+                                    while testnum <= 55:
+                                        testnum += 1
+                                        findnum = textnum + testnum
+                                        if origin_message[findnum] == "-":
+                                            testnum = 60
+                                            emoji_code = ""
+                                        elif origin_message[findnum] == "]":
+                                            emoji_code = "[" + origin_message[textnum:findnum] + "]"
+                                            jump_num = len(emoji_code) - 1
+                                            testnum = 30
+                                    if emoji_code != "":
+                                        # 粘贴biliemoji
+                                        for emoji_info in origin_emoji_infos:
+                                            emoji_name = emoji_info["emoji_name"]
+                                            if emoji_name == emoji_code:
+                                                emoji_url = emoji_info["url"]
+                                                response = requests.get(emoji_url)
+                                                paste_image = Image.open(BytesIO(response.content))
+                                                paste_image = paste_image.resize(
+                                                    (int(fortsize * 1.2), int(fortsize * 1.2)))
+                                                draw_image.paste(paste_image,
+                                                                 (int(x + print_x * fortsize),
+                                                                  int(y + print_y * fortsize)))
+                                                print_x += 0.5
+
+                                if emoji_code == "":
+                                    # 检测是否半格字符
+                                    if not is_emoji(font):
+                                        # 打印文字
+                                        draw.text(xy=(int(x + print_x * fortsize), int(y + print_y * fortsize)),
+                                                  text=text,
+                                                  fill=(100, 100, 100), font=cache_font)
+                                        if text in half_text:
+                                            print_x -= 0.4
+                                    else:
+                                        # 打印表情
+                                        paste_image = get_emoji(font)
+                                        paste_image = paste_image.resize((int(fortsize * 1.1), int(fortsize * 1.1)))
+                                        draw_image.paste(paste_image,
+                                                         (int(x + print_x * fortsize), int(y + print_y * fortsize)))
+
+                    returnpath = cachepath + 'bili动态/'
+                    if not os.path.exists(returnpath):
+                        os.makedirs(returnpath)
+                    returnpath = returnpath + date + '_' + timenow + '_' + random_num + '.png'
+                    draw_image.save(returnpath)
+                    logger.info("bili-push_draw_绘图成功")
+                    code = 2
+
+            # 图文动态
+            elif origin_type == 2:
+                origin_timestamp = origin_data["item"]["upload_time"]
+                origin_timestamp = time.localtime(origin_timestamp)
+                origin_timestamp = time.strftime("%Y年%m月%d日 %H:%M:%S", origin_timestamp)
+                origin_message = origin_data["item"]["description"]
+                origin_images = origin_data["item"]["pictures"]
+                images = []
+                for origin_image in origin_images:
+                    image_url = origin_image["img_src"]
+                    images.append(image_url)
+                try:
+                    emoji_infos = data["display"]["emoji_info"]["emoji_details"]
+                except Exception as e:
+                    emoji_infos = []
+                logger.info("bili-push_draw_12_开始绘图")
+                if run:
+                    fortsize = 30
+                    font = ImageFont.truetype(font=fontfile, size=fortsize)
+                    origin_fortsize = 27
+                    origin_font = ImageFont.truetype(font=fontfile, size=origin_fortsize)
+
+                    image_x = 900
+                    image_y = 140  # add base y
+                    image_y += 125 + 65  # add hear and space
+                    # 添加文字长度
+                    paste_image = draw_text(card_message,
+                                            size=30,
+                                            textlen=24,
+                                            biliemoji_infos=emoji_infos,
+                                            calculate=True)
+                    w, h = paste_image.size
+                    image_y += h
+                    # 添加转发内容
+                    origin_len_y = 120 + 60
+                    # add message
+                    paste_image = draw_text(origin_message,
+                                            size=27,
+                                            textlen=24,
+                                            biliemoji_infos=emoji_infos,
+                                            calculate=True)
+                    w, h = paste_image.size
+                    origin_len_y += h
+
+                    # 添加图片长度
+                    imagelen = len(images)
+                    if imagelen == 1:
+                        # 单图，宽718
+                        response = requests.get(images[0])
+                        addimage = Image.open(BytesIO(response.content))
+                        w, h = addimage.size
+                        if h / w >= 1.8:
+                            x = 718
+                            y = int(718 * h / w)
+                            addimage = addimage.resize((x, y))
+                            w = 718
+                            h = int(w * 1.8)
+                        elif h / w <= 0.5:
+                            y = 359
+                            x = int(359 / h * w)
+                            addimage = addimage.resize((x, y))
+                            w = 718
+                            h = 359
+                        else:
+                            y = int(718 * h / w)
+                            x = 718
+                            h = y
+                            addimage = addimage.resize((x, y))
+                        origin_len_y += h
+                    elif imagelen == 2:
+                        # 2图，图大小356
+                        origin_len_y += 356 + 10
+                    elif imagelen <= 4:
+                        # 4图，图大小356
+                        origin_len_y += 718 + 10
+                    # elif imagelen <= 6:
+                    else:
+                        # 6图，图大小245
+                        origin_len_y += 10
+                        while imagelen >= 1:
+                            imagelen -= 3
+                            origin_len_y += 245 + 5
+
+                    origin_len_y = int(origin_len_y)
+                    # 将转发长度添加到总长度中
+                    image_y += origin_len_y
+
+                    image_x = int(image_x)
+                    image_y = int(image_y)
+                    draw_image = new_background(image_x, image_y)
+                    draw = ImageDraw.Draw(draw_image)
+                    # 开始往图片添加内容
+                    # 添加头像
+                    response = requests.get(biliface)
+                    image_face = Image.open(BytesIO(response.content))
+                    image_face = image_face.resize((125, 125))
+                    imageround = get_emoji("imageround")
+                    imageround = imageround.resize((129, 129))
+                    draw_image.paste(imageround, (73, 73), mask=imageround)
+                    imageround = imageround.resize((125, 125))
+                    draw_image.paste(image_face, (75, 75), mask=imageround)
+
+                    # 添加名字
+                    cache_font = ImageFont.truetype(font=fontfile, size=35)
+                    draw.text(xy=(230, 85), text=biliname, fill=(0, 0, 0), font=cache_font)
+
+                    # 添加日期
+                    draw.text(xy=(230, 145), text=timestamp, fill=(100, 100, 100), font=font)
+
+                    # 添加动态内容
+                    x = 75
+                    y = 230
+                    paste_image = draw_text(card_message,
+                                            size=30,
+                                            textlen=24,
+                                            biliemoji_infos=emoji_infos)
+                    draw_image.paste(paste_image, (x, y), mask=paste_image)
+                    w, h = paste_image.size
+                    y += h
+                    x = 65
+                    # 添加转发内容
+                    # 添加转发消息框
+                    paste_image = Image.new("RGB", (776, origin_len_y + 4), "#FFFFFF")
+                    paste_image = circle_corner(paste_image, 15)
+                    draw_image.paste(paste_image, (x - 2, y - 2), mask=paste_image)
+
+                    # 添加转发消息底图
+                    paste_image = Image.new("RGB", (772, origin_len_y), "#f8fbfd")
+                    paste_image = circle_corner(paste_image, 15)
+                    draw_image.paste(paste_image, (x, y), mask=paste_image)
+
+                    # 添加转发头像
+                    response = requests.get(origin_biliface)
+                    image_face = Image.open(BytesIO(response.content))
+                    image_face = image_face.resize((110, 110))
+                    imageround = get_emoji("imageround")
+                    imageround = imageround.resize((114, 114))
+                    draw_image.paste(imageround, (x + 48, y + 48), mask=imageround)
+                    imageround = imageround.resize((110, 110))
+                    draw_image.paste(image_face, (x + 50, y + 50), mask=imageround)
+
+                    # 添加名字
+                    cache_font = ImageFont.truetype(font=fontfile, size=30)
+                    draw.text(xy=(x + 190, y + 70), text=origin_biliname, fill=(0, 0, 0), font=cache_font)
+
+                    # 添加日期
+                    cache_font = ImageFont.truetype(font=fontfile, size=26)
+                    draw.text(xy=(x + 190, y + 120), text=origin_timestamp, fill=(100, 100, 100), font=cache_font)
+
+                    # 添加转发的内容
+                    x += 35
+                    y += 190
+                    paste_image = draw_text(origin_message,
+                                            size=28,
+                                            textlen=22,
+                                            biliemoji_infos=emoji_infos)
+                    draw_image.paste(paste_image, (x, y), mask=paste_image)
+                    w, h = paste_image.size
+                    x -= 10
+                    y += h
+
+                    print_y = y
+                    print_x = x
+
+                    # 添加图片
+                    if imagelen == 1:
+                        paste_image = addimage
+                        paste_image = circle_corner(paste_image, 15)
+                        draw_image.paste(paste_image, (x, y), mask=paste_image)
+                    elif imagelen <= 4:
+                        # 2图，图大小356
+                        print_y = 0
+                        print_x = -1
+                        for image in images:
+                            print_x += 1
+                            if print_x >= 2:
+                                print_x = 0
+                                print_y += 1
+                            response = requests.get(image)
+                            paste_image = Image.open(BytesIO(response.content))
+                            paste_image = image_resize2(image=paste_image, size=(356, 356),
+                                                        overturn=True)
+                            paste_image = circle_corner(paste_image, 15)
+                            draw_image.paste(paste_image, (int(x + print_x * (356 + 5)), int(y + print_y * (356 + 5))),
+                                             mask=paste_image)
+                    else:
+                        # 6图，图大小245
+                        image_y += 506 + 15
+                        num = 0
+                        for image in images:
+                            num += 1
+                            if num >= 3:
+                                print_x = x
+                                print_y += 253 + 5
+                            response = requests.get(image)
+                            paste_image = Image.open(BytesIO(response.content))
+                            paste_image = image_resize2(image=paste_image, size=(253, 253),
+                                                        overturn=True)
+                            paste_image = circle_corner(paste_image, 15)
+                            draw_image.paste(paste_image, (int(print_x), int(print_y)), mask=paste_image)
+                            print_x += 253 + 5
+
+                    returnpath = cachepath + 'bili动态/'
+                    if not os.path.exists(returnpath):
+                        os.makedirs(returnpath)
+                    returnpath = returnpath + date + '_' + timenow + '_' + random_num + '.png'
+                    draw_image.save(returnpath)
+                    logger.info("bili-push_draw_绘图成功")
+                    code = 2
+
+            # 文字动态
+            elif origin_type == 4:
+                origin_timestamp = origin_data["item"]["timestamp"]
+                origin_timestamp = time.localtime(origin_timestamp)
+                origin_timestamp = time.strftime("%Y年%m月%d日 %H:%M:%S", origin_timestamp)
+                origin_message = origin_data["item"]["content"]
+                logger.info("bili-push_draw_14_开始绘图")
+                if run:
+                    fortsize = 30
+                    font = ImageFont.truetype(font=fontfile, size=fortsize)
+                    origin_fortsize = 27
+                    origin_font = ImageFont.truetype(font=fontfile, size=origin_fortsize)
+
+                    image_x = 900
+                    image_y = 140  # add base y
+                    image_y += 125 + 35  # add hear and space
+                    # 添加文字长度
+                    paste_image = draw_text(card_message,
+                                            size=30,
+                                            textlen=24,
+                                            biliemoji_infos=emoji_infos,
+                                            calculate=True)
+                    w, h = paste_image.size
+                    image_y += h
+                    # 添加转发内容
+                    origin_len_y = 120 + 90
+                    # add message
+                    paste_image = draw_text(origin_message,
+                                            size=27,
+                                            textlen=24,
+                                            biliemoji_infos=emoji_infos,
+                                            calculate=True)
+                    w, h = paste_image.size
+                    origin_len_y += h
+                    # 将转发长度添加到总长度中
+                    image_y += origin_len_y
+
+                    image_x = int(image_x)
+                    image_y = int(image_y)
+                    draw_image = new_background(image_x, image_y)
+                    draw = ImageDraw.Draw(draw_image)
+                    # 开始往图片添加内容
+                    # 添加头像
+                    response = requests.get(biliface)
+                    image_face = Image.open(BytesIO(response.content))
+                    image_face = image_face.resize((125, 125))
+                    imageround = get_emoji("imageround")
+                    imageround = imageround.resize((129, 129))
+                    draw_image.paste(imageround, (73, 73), mask=imageround)
+                    imageround = imageround.resize((125, 125))
+                    draw_image.paste(image_face, (75, 75), mask=imageround)
+
+                    # 添加名字
+                    cache_font = ImageFont.truetype(font=fontfile, size=35)
+                    draw.text(xy=(230, 85), text=biliname, fill=(0, 0, 0), font=cache_font)
+
+                    # 添加日期
+                    draw.text(xy=(230, 145), text=timestamp, fill=(100, 100, 100), font=font)
+
+                    # 添加动态内容
+                    x = 75
+                    y = 230
+                    paste_image = draw_text(card_message,
+                                            size=30,
+                                            textlen=24,
+                                            biliemoji_infos=emoji_infos)
+                    draw_image.paste(paste_image, (x, y), mask=paste_image)
+                    w, h = paste_image.size
+
+                    y = y + h
+                    x = 65
+                    # 添加转发内容
+                    # 添加转发消息框
+                    paste_image = Image.new("RGB", (776, origin_len_y + 4), "#FFFFFF")
+                    paste_image = circle_corner(paste_image, 15)
+                    draw_image.paste(paste_image, (x - 2, y - 2), mask=paste_image)
+
+                    # 添加转发消息底图
+                    paste_image = Image.new("RGB", (772, origin_len_y), "#f8fbfd")
+                    paste_image = circle_corner(paste_image, 15)
+                    draw_image.paste(paste_image, (x - 2, y - 2), mask=paste_image)
+
+                    # 添加转发头像
+                    response = requests.get(origin_biliface)
+                    image_face = Image.open(BytesIO(response.content))
+                    image_face = image_face.resize((110, 110))
+                    imageround = get_emoji("imageround")
+                    imageround = imageround.resize((114, 114))
+                    draw_image.paste(imageround, (x + 48, y + 48), mask=imageround)
+                    imageround = imageround.resize((110, 110))
+                    draw_image.paste(image_face, (x + 50, y + 50), mask=imageround)
+
+                    # 添加名字
+                    cache_font = ImageFont.truetype(font=fontfile, size=30)
+                    draw.text(xy=(x + 190, y + 70), text=origin_biliname, fill=(0, 0, 0), font=cache_font)
+
+                    # 添加日期
+                    cache_font = ImageFont.truetype(font=fontfile, size=26)
+                    draw.text(xy=(x + 190, y + 120), text=origin_timestamp, fill=(100, 100, 100), font=cache_font)
+
+                    # 添加转发的内容
+                    x = x + 75
+                    y = y + 190
+                    paste_image = draw_text(origin_message,
+                                            size=28,
+                                            textlen=24,
+                                            biliemoji_infos=emoji_infos)
+                    draw_image.paste(paste_image, (x, y), mask=paste_image)
+
+                    returnpath = cachepath + 'bili动态/'
+                    if not os.path.exists(returnpath):
+                        os.makedirs(returnpath)
+                    returnpath = returnpath + date + '_' + timenow + '_' + random_num + '.png'
+                    draw_image.save(returnpath)
+                    logger.info("bili-push_draw_绘图成功")
+                    code = 2
+
+            # 文章动态
+            elif origin_type == 64:
+                origin_timestamp = origin_data["publish_time"]
+                origin_timestamp = time.localtime(origin_timestamp)
+                origin_timestamp = time.strftime("%Y年%m月%d日 %H:%M:%S", origin_timestamp)
+                origin_title = origin_data["title"]
+                origin_message = origin_data["summary"]
+                origin_image = origin_data["image_urls"][0]
+                if run:
+                    fortsize = 30
+                    font = ImageFont.truetype(font=fontfile, size=fortsize)
+                    origin_fortsize = 27
+                    origin_font = ImageFont.truetype(font=fontfile, size=origin_fortsize)
+
+                    image_x = 900
+                    image_y = 140  # add base y
+                    image_y += 125 + 35  # add hear and space
+                    # 添加文字长度
+                    paste_image = draw_text(card_message,
+                                            size=30,
+                                            textlen=24,
+                                            biliemoji_infos=emoji_infos,
+                                            calculate=True)
+                    w, h = paste_image.size
+                    image_y += h
+                    # 添加转发内容
+                    origin_len_y = 120 + 90
+                    # 添加转发的视频长度
+                    origin_len_y += 428 + 20
+                    # 将转发长度添加到总长度中
+                    image_y += origin_len_y
+
+                    # 开始绘制图像
+                    image_x = int(image_x)
+                    image_y = int(image_y)
+                    draw_image = new_background(image_x, image_y)
+                    draw = ImageDraw.Draw(draw_image)
+                    # 开始往图片添加内容
+                    # 添加头像
+                    response = requests.get(biliface)
+                    image_face = Image.open(BytesIO(response.content))
+                    image_face = image_face.resize((125, 125))
+                    imageround = get_emoji("imageround")
+                    imageround = imageround.resize((129, 129))
+                    draw_image.paste(imageround, (73, 73), mask=imageround)
+                    imageround = imageround.resize((125, 125))
+                    draw_image.paste(image_face, (75, 75), mask=imageround)
+
+                    # 添加名字
+                    cache_font = ImageFont.truetype(font=fontfile, size=35)
+                    draw.text(xy=(230, 85), text=biliname, fill=(0, 0, 0), font=cache_font)
+
+                    # 添加日期
+                    draw.text(xy=(230, 145), text=timestamp, fill=(100, 100, 100), font=font)
+
+                    # 添加动态内容
+                    x = 75
+                    y = 230
+                    paste_image = draw_text(card_message,
+                                            size=30,
+                                            textlen=24,
+                                            biliemoji_infos=emoji_infos)
+                    draw_image.paste(paste_image, (x, y), mask=paste_image)
+                    w, h = paste_image.size
+                    y += h
+                    x = 65
+                    # 添加转发内容
+                    # 添加转发消息框
+                    paste_image = Image.new("RGB", (776, origin_len_y + 4), "#FFFFFF")
+                    paste_image = circle_corner(paste_image, 15)
+                    draw_image.paste(paste_image, (x - 2, y - 2), mask=paste_image)
+
+                    # 添加转发消息底图
+                    paste_image = Image.new("RGB", (772, origin_len_y), "#f8fbfd")
+                    paste_image = circle_corner(paste_image, 15)
+                    draw_image.paste(paste_image, (x, y), mask=paste_image)
+
+                    # 添加转发头像
+                    response = requests.get(origin_biliface)
+                    image_face = Image.open(BytesIO(response.content))
+                    image_face = image_face.resize((110, 110))
+                    imageround = get_emoji("imageround")
+                    imageround = imageround.resize((114, 114))
+                    draw_image.paste(imageround, (x + 48, y + 48), mask=imageround)
+                    imageround = imageround.resize((110, 110))
+                    draw_image.paste(image_face, (x + 50, y + 50), mask=imageround)
+
+                    # 添加名字
+                    cache_font = ImageFont.truetype(font=fontfile, size=30)
+                    draw.text(xy=(x + 190, y + 70), text=origin_biliname, fill=(0, 0, 0), font=cache_font)
+
+                    # 添加日期
+                    cache_font = ImageFont.truetype(font=fontfile, size=26)
+                    draw.text(xy=(x + 190, y + 120), text=origin_timestamp, fill=(100, 100, 100), font=cache_font)
+
+                    # 添加转发的内容
+                    x += 20
+                    y += 190
+
+                    # 添加视频框
+                    paste_image = Image.new("RGB", (730, 220), "#FFFFFF")
+                    paste_image = circle_corner(paste_image, 15)
+                    draw_image.paste(paste_image, (x, y), mask=paste_image)
+                    # 添加视频图像
+                    response = requests.get(origin_image)
+                    paste_image = Image.open(BytesIO(response.content))
+                    paste_image = paste_image.resize((346, 216))
+                    paste_image = circle_corner(paste_image, 15)
+                    draw_image.paste(paste_image, (x + 2, y + 2), mask=paste_image)
+                    # 添加视频标题
+                    x += 366
+                    y += 20
+                    fortsize = 27
+                    cache_font = ImageFont.truetype(font=fontfile, size=27)
+
+                    print_x = -1
+                    print_y = 0
+                    num = 0
+                    jump_num = 0
+                    textnum = 0
+                    for text in origin_title:
+                        textnum += 1
+                        if jump_num > 0:
+                            jump_num -= 1
+                        else:
+                            print_x += 1
+                            num += 1
+                            # 打印换行
+                            if print_y >= 1 and print_x == 11:
+                                text = "…"
+                            if print_y >= 1 and print_x >= 12:
+                                text = ""
+                            elif print_y >= 2:
+                                text = ""
+                            if print_x > 12 or text == "\n":
+                                num = 1
+                                print_y += 1.2
+                                print_x = 0
+                                if text == "\n":
+                                    print_x = -1
+
+                            # 检测biliemoji
+                            emoji_code = ""
+                            if text == "[":
+                                testnum = 1
+                                while testnum <= 55:
+                                    testnum += 1
+                                    findnum = textnum + testnum
+                                    if origin_title[findnum] == "-":
+                                        testnum = 60
+                                        emoji_code = ""
+                                    elif origin_title[findnum] == "]":
+                                        emoji_code = "[" + origin_title[textnum:findnum] + "]"
+                                        jump_num = len(emoji_code) - 1
+                                        testnum = 30
+                                if emoji_code != "":
+                                    # 粘贴biliemoji
+                                    for emoji_info in origin_emoji_infos:
+                                        emoji_name = emoji_info["emoji_name"]
+                                        if emoji_name == emoji_code:
+                                            emoji_url = emoji_info["url"]
+                                            response = requests.get(emoji_url)
+                                            paste_image = Image.open(BytesIO(response.content))
+                                            paste_image = paste_image.resize((int(fortsize * 1.2), int(fortsize * 1.2)))
+                                            draw_image.paste(paste_image,
+                                                             (int(x + print_x * fortsize), int(y + print_y * fortsize)))
+                                            print_x += 0.5
+
+                            if emoji_code == "":
+                                # 检测是否半格字符
+                                if not is_emoji(font):
+
+                                    # 打印文字
+                                    draw.text(xy=(int(x + print_x * fortsize), int(y + print_y * fortsize)), text=text,
+                                              fill=(0, 0, 0), font=cache_font)
+                                    if text in half_text:
+                                        print_x -= 0.4
+                                else:
+                                    # 打印表情
+                                    try:
+                                        paste_image = get_emoji(font)
+                                        paste_image = paste_image.resize((int(fortsize * 1.1), int(fortsize * 1.1)))
+                                        draw_image.paste(paste_image,
+                                                         (int(x + print_x * fortsize), int(y + print_y * fortsize)))
+                                    except Exception as e:
+                                        draw.text(xy=(int(x + print_x * fortsize), int(y + print_y * fortsize)),
+                                                  text=text, fill=(0, 0, 0), font=cache_font)
+                    # 添加视频简介
+                    y += 70
+                    fortsize = 25
+                    cache_font = ImageFont.truetype(font=fontfile, size=25)
+
+                    print_x = -1
+                    print_y = 0
+                    num = 0
+                    jump_num = 0
+                    textnum = 0
+                    for text in origin_message:
+                        textnum += 1
+                        if jump_num > 0:
+                            jump_num -= 1
+                        else:
+                            print_x += 1
+                            num += 1
+                            if print_y >= 2 and print_x == 12:
+                                text = "…"
+                            if print_y >= 2 and print_x >= 13:
+                                text = ""
+                            elif print_y >= 4:
+                                text = ""
+                            else:
+                                # 打印换行
+                                if print_x > 14 or text == "\n":
+                                    num = 1
+                                    print_y += 1.2
+                                    print_x = 0
+                                    if text == "\n":
+                                        print_x = -1
+
+                                # 检测biliemoji
+                                emoji_code = ""
+                                if text == "[":
+                                    testnum = 1
+                                    while testnum <= 55:
+                                        testnum += 1
+                                        findnum = textnum + testnum
+                                        if origin_message[findnum] == "-":
+                                            testnum = 60
+                                            emoji_code = ""
+                                        elif origin_message[findnum] == "]":
+                                            emoji_code = "[" + origin_message[textnum:findnum] + "]"
+                                            jump_num = len(emoji_code) - 1
+                                            testnum = 30
+                                    if emoji_code != "":
+                                        # 粘贴biliemoji
+                                        for emoji_info in origin_emoji_infos:
+                                            emoji_name = emoji_info["emoji_name"]
+                                            if emoji_name == emoji_code:
+                                                emoji_url = emoji_info["url"]
+                                                response = requests.get(emoji_url)
+                                                paste_image = Image.open(BytesIO(response.content))
+                                                paste_image = paste_image.resize(
+                                                    (int(fortsize * 1.2), int(fortsize * 1.2)))
+                                                draw_image.paste(paste_image,
+                                                                 (int(x + print_x * fortsize),
+                                                                  int(y + print_y * fortsize)))
+                                                print_x += 0.5
+
+                                if emoji_code == "":
+                                    # 检测是否半格字符
+                                    if not is_emoji(font):
+                                        # 打印文字
+                                        draw.text(xy=(int(x + print_x * fortsize), int(y + print_y * fortsize)),
+                                                  text=text,
+                                                  fill=(100, 100, 100), font=cache_font)
+                                        if text in half_text:
+                                            print_x -= 0.4
+                                    else:
+                                        # 打印表情
+                                        paste_image = get_emoji(font)
+                                        paste_image = paste_image.resize((int(fortsize * 1.1), int(fortsize * 1.1)))
+                                        draw_image.paste(paste_image,
+                                                         (int(x + print_x * fortsize), int(y + print_y * fortsize)))
+
+                    returnpath = cachepath + 'bili动态/'
+                    if not os.path.exists(returnpath):
+                        os.makedirs(returnpath)
+                    returnpath = returnpath + date + '_' + timenow + '_' + random_num + '.png'
+                    draw_image.save(returnpath)
+                    print("bili-push_绘图成功")
+                    code = 0  # #########################未完成内容不发送
 
         # 图文动态
-        elif origin_type == 2:
-            origin_biliname = origin_data["user"]["name"]
-            origin_biliface = origin_data["user"]["head_url"]
-            origin_timestamp = origin_data["item"]["upload_time"]
-            origin_timestamp = time.localtime(origin_timestamp)
-            origin_timestamp = time.strftime("%Y年%m月%d日 %H:%M:%S", origin_timestamp)
-            origin_message = origin_data["item"]["description"]
-            origin_images = origin_data["item"]["pictures"]
+        elif bilitype == 2:
+            card_message = bilidata["item"]["description"]
+            card_images = bilidata["item"]["pictures"]
             images = []
-            for origin_image in origin_images:
-                image_url = origin_image["img_src"]
+            for card_image in card_images:
+                image_url = card_image["img_src"]
                 images.append(image_url)
             try:
                 emoji_infos = data["display"]["emoji_info"]["emoji_details"]
             except Exception as e:
                 emoji_infos = []
-            logger.info("bili-push_开始绘图")
-            if runcode == 1:
-                fortsize = 30
-                font = ImageFont.truetype(font=fontfile, size=fortsize)
-                origin_fortsize = 27
-                origin_font = ImageFont.truetype(font=fontfile, size=origin_fortsize)
 
-                image_x = 900
-                image_y = 140  # add base y
-                image_y += 125 + 65  # add hear and space
-                # 添加文字长度
-                paste_image = draw_text(card_message,
-                                        size=30,
-                                        textlen=24,
-                                        biliemoji_infos=emoji_infos,
-                                        calculate=True)
-                w, h = paste_image.size
-                image_y += h
-                # 添加转发内容
-                origin_len_y = 120 + 60
-                # add message
-                paste_image = draw_text(origin_message,
-                                        size=27,
-                                        textlen=24,
-                                        biliemoji_infos=emoji_infos,
-                                        calculate=True)
-                w, h = paste_image.size
-                origin_len_y += h
-
-                # 添加图片长度
-                imagelen = len(images)
-                if imagelen == 1:
-                    # 单图，宽718
-                    response = requests.get(images[0])
-                    addimage = Image.open(BytesIO(response.content))
-                    w, h = addimage.size
-                    if h / w >= 1.8:
-                        x = 718
-                        y = int(718 * h / w)
-                        addimage = addimage.resize((x, y))
-                        w = 718
-                        h = int(w * 1.8)
-                    elif h / w <= 0.5:
-                        y = 359
-                        x = int(359 / h * w)
-                        addimage = addimage.resize((x, y))
-                        w = 718
-                        h = 359
-                    else:
-                        y = int(718 * h / w)
-                        x = 718
-                        h = y
-                        addimage = addimage.resize((x, y))
-                    origin_len_y += h
-                elif imagelen == 2:
-                    # 2图，图大小356
-                    origin_len_y += 356 + 10
-                elif imagelen <= 4:
-                    # 4图，图大小356
-                    origin_len_y += 718 + 10
-                # elif imagelen <= 6:
-                else:
-                    # 6图，图大小245
-                    origin_len_y += 10
-                    while imagelen >= 1:
-                        imagelen -= 3
-                        origin_len_y += 245 + 5
-
-                origin_len_y = int(origin_len_y)
-                # 将转发长度添加到总长度中
-                image_y += origin_len_y
-
-                image_x = int(image_x)
-                image_y = int(image_y)
-                draw_image = new_background(image_x, image_y)
-                draw = ImageDraw.Draw(draw_image)
-                # 开始往图片添加内容
-                # 添加头像
-                response = requests.get(biliface)
-                image_face = Image.open(BytesIO(response.content))
-                image_face = image_face.resize((125, 125))
-                imageround = get_emoji("imageround")
-                imageround = imageround.resize((129, 129))
-                draw_image.paste(imageround, (73, 73), mask=imageround)
-                imageround = imageround.resize((125, 125))
-                draw_image.paste(image_face, (75, 75), mask=imageround)
-
-                # 添加名字
-                cache_font = ImageFont.truetype(font=fontfile, size=35)
-                draw.text(xy=(230, 85), text=biliname, fill=(0, 0, 0), font=cache_font)
-
-                # 添加日期
-                draw.text(xy=(230, 145), text=timestamp, fill=(100, 100, 100), font=font)
-
-                # 添加动态内容
-                x = 75
-                y = 230
-                paste_image = draw_text(card_message,
-                                        size=30,
-                                        textlen=24,
-                                        biliemoji_infos=emoji_infos)
-                draw_image.paste(paste_image, (x, y), mask=paste_image)
-                w, h = paste_image.size
-                y += h
-                x = 65
-                # 添加转发内容
-                # 添加转发消息框
-                paste_image = Image.new("RGB", (776, origin_len_y + 4), "#FFFFFF")
-                paste_image = circle_corner(paste_image, 15)
-                draw_image.paste(paste_image, (x - 2, y - 2), mask=paste_image)
-
-                # 添加转发消息底图
-                paste_image = Image.new("RGB", (772, origin_len_y), "#f8fbfd")
-                paste_image = circle_corner(paste_image, 15)
-                draw_image.paste(paste_image, (x, y), mask=paste_image)
-
-                # 添加转发头像
-                response = requests.get(origin_biliface)
-                image_face = Image.open(BytesIO(response.content))
-                image_face = image_face.resize((110, 110))
-                imageround = get_emoji("imageround")
-                imageround = imageround.resize((114, 114))
-                draw_image.paste(imageround, (x + 48, y + 48), mask=imageround)
-                imageround = imageround.resize((110, 110))
-                draw_image.paste(image_face, (x + 50, y + 50), mask=imageround)
-
-                # 添加名字
-                cache_font = ImageFont.truetype(font=fontfile, size=30)
-                draw.text(xy=(x + 190, y + 70), text=origin_biliname, fill=(0, 0, 0), font=cache_font)
-
-                # 添加日期
-                cache_font = ImageFont.truetype(font=fontfile, size=26)
-                draw.text(xy=(x + 190, y + 120), text=origin_timestamp, fill=(100, 100, 100), font=cache_font)
-
-                # 添加转发的内容
-                x += 35
-                y += 190
-                paste_image = draw_text(origin_message,
-                                        size=28,
-                                        textlen=22,
-                                        biliemoji_infos=emoji_infos)
-                draw_image.paste(paste_image, (x, y), mask=paste_image)
-                w, h = paste_image.size
-                x -= 10
-                y += h
-
-                print_y = y
-                print_x = x
-
-                # 添加图片
-                if imagelen == 1:
-                    paste_image = addimage
-                    paste_image = circle_corner(paste_image, 15)
-                    draw_image.paste(paste_image, (x, y), mask=paste_image)
-                elif imagelen <= 4:
-                    # 2图，图大小356
-                    print_y = 0
-                    print_x = -1
-                    for image in images:
-                        print_x += 1
-                        if print_x >= 2:
-                            print_x = 0
-                            print_y += 1
-                        response = requests.get(image)
-                        paste_image = Image.open(BytesIO(response.content))
-                        paste_image = image_resize2(image=paste_image, size=(356, 356),
-                                                    overturn=True)
-                        paste_image = circle_corner(paste_image, 15)
-                        draw_image.paste(paste_image, (int(x + print_x * (356 + 5)), int(y + print_y * (356 + 5))),
-                                         mask=paste_image)
-                else:
-                    # 6图，图大小245
-                    image_y += 506 + 15
-                    num = 0
-                    for image in images:
-                        num += 1
-                        if num >= 3:
-                            print_x = x
-                            print_y += 253 + 5
-                        response = requests.get(image)
-                        paste_image = Image.open(BytesIO(response.content))
-                        paste_image = image_resize2(image=paste_image, size=(253, 253),
-                                                    overturn=True)
-                        paste_image = circle_corner(paste_image, 15)
-                        draw_image.paste(paste_image, (int(print_x), int(print_y)), mask=paste_image)
-                        print_x += 253 + 5
-
-                returnpath = cachepath + 'bili动态/'
-                if not os.path.exists(returnpath):
-                    os.makedirs(returnpath)
-                returnpath = returnpath + date + '_' + timenow + '_' + random_num + '.png'
-                draw_image.save(returnpath)
-                logger.info("bili-push_绘图成功")
-                code = 2
-
-        # 文字动态
-        elif origin_type == 4:
-            origin_biliname = origin_data["user"]["uname"]
-            origin_biliface = origin_data["user"]["face"]
-            origin_timestamp = origin_data["item"]["timestamp"]
-            origin_timestamp = time.localtime(origin_timestamp)
-            origin_timestamp = time.strftime("%Y年%m月%d日 %H:%M:%S", origin_timestamp)
-            origin_message = origin_data["item"]["content"]
-            logger.info("bili-push_开始绘图")
-            if runcode == 1:
-                fortsize = 30
-                font = ImageFont.truetype(font=fontfile, size=fortsize)
-                origin_fortsize = 27
-                origin_font = ImageFont.truetype(font=fontfile, size=origin_fortsize)
-
+            if run:  # 代码折叠
+                logger.info("bili-push_draw_2_开始绘图")
+                # 计算图片长度
                 image_x = 900
                 image_y = 140  # add base y
                 image_y += 125 + 35  # add hear and space
@@ -1095,18 +1493,45 @@ def get_draw(data):
                                         calculate=True)
                 w, h = paste_image.size
                 image_y += h
-                # 添加转发内容
-                origin_len_y = 120 + 90
-                # add message
-                paste_image = draw_text(origin_message,
-                                        size=27,
-                                        textlen=24,
-                                        biliemoji_infos=emoji_infos,
-                                        calculate=True)
-                w, h = paste_image.size
-                origin_len_y += h
-                # 将转发长度添加到总长度中
-                image_y += origin_len_y
+                # 添加图片长度
+                imagelen = len(images)
+                if imagelen == 1:
+                    response = requests.get(images[0])
+                    addimage = Image.open(BytesIO(response.content))
+                    w, h = addimage.size
+                    if h / w >= 1.8:
+                        x = 770
+                        y = int(770 * h / w)
+                        addimage = addimage.resize((x, y))
+                        w = 770
+                        h = int(w * 1.8)
+                        addimage = image_resize2(addimage, (w, h), overturn=True)
+                    elif h / w <= 0.5:
+                        y = 385
+                        x = int(385 / h * w)
+                        addimage = addimage.resize((x, y))
+                        w = 770
+                        h = 385
+                        addimage = image_resize2(addimage, (w, h), overturn=True)
+                    else:
+                        y = int(770 * h / w)
+                        x = 770
+                        addimage = addimage.resize((x, y))
+                        addimage = image_resize2(addimage, (x, y), overturn=True)
+                    image_y += y
+                elif imagelen == 2:
+                    # 2图，图大小382
+                    image_y += 382 + 10
+                elif imagelen <= 4:
+                    # 4图，图大小382
+                    image_y += 764 + 15
+                # elif imagelen <= 6:
+                else:
+                    # 6图，图大小253
+                    image_y += 10
+                    while imagelen >= 1:
+                        imagelen -= 3
+                        image_y += 253 + 5
 
                 image_x = int(image_x)
                 image_y = int(image_y)
@@ -1140,73 +1565,133 @@ def get_draw(data):
                 draw_image.paste(paste_image, (x, y), mask=paste_image)
                 w, h = paste_image.size
 
-                y = y + h
                 x = 65
-                # 添加转发内容
-                # 添加转发消息框
-                paste_image = Image.new("RGB", (776, origin_len_y + 4), "#FFFFFF")
-                paste_image = circle_corner(paste_image, 15)
-                draw_image.paste(paste_image, (x - 2, y - 2), mask=paste_image)
+                y = 230 + h
 
-                # 添加转发消息底图
-                paste_image = Image.new("RGB", (772, origin_len_y), "#f8fbfd")
-                paste_image = circle_corner(paste_image, 15)
-                draw_image.paste(paste_image, (x - 2, y - 2), mask=paste_image)
+                print_x = -1
+                print_y = 0
 
-                # 添加转发头像
-                response = requests.get(origin_biliface)
-                image_face = Image.open(BytesIO(response.content))
-                image_face = image_face.resize((110, 110))
-                imageround = get_emoji("imageround")
-                imageround = imageround.resize((114, 114))
-                draw_image.paste(imageround, (x + 48, y + 48), mask=imageround)
-                imageround = imageround.resize((110, 110))
-                draw_image.paste(image_face, (x + 50, y + 50), mask=imageround)
+                imagelen = len(images)
+                if imagelen == 1:
+                    paste_image = circle_corner(addimage, 15)
+                    draw_image.paste(paste_image, (int(x), int(y)), mask=paste_image)
+                elif imagelen <= 4:
+                    # 2图，图大小382
+                    for image in images:
+                        print_x += 1
+                        if print_x >= 2:
+                            print_x = 0
+                            print_y += 1
 
-                # 添加名字
-                cache_font = ImageFont.truetype(font=fontfile, size=30)
-                draw.text(xy=(x + 190, y + 70), text=origin_biliname, fill=(0, 0, 0), font=cache_font)
+                        response = requests.get(image)
+                        paste_image = Image.open(BytesIO(response.content))
+                        paste_image = image_resize2(image=paste_image, size=(382, 382), overturn=True)
+                        paste_image = circle_corner(paste_image, 15)
+                        draw_image.paste(paste_image, (int(x + print_x * (382 + 5)), int(y + print_y * (382 + 5))),
+                                         mask=paste_image)
+                # elif imagelen <= 6:
+                else:
+                    # 6图，图大小253
+                    for image in images:
+                        print_x += 1
+                        if print_x >= 3:
+                            print_x = 0
+                            print_y += 1
 
-                # 添加日期
-                cache_font = ImageFont.truetype(font=fontfile, size=26)
-                draw.text(xy=(x + 190, y + 120), text=origin_timestamp, fill=(100, 100, 100), font=cache_font)
-
-                # 添加转发的内容
-                x = x + 75
-                y = y + 190
-                paste_image = draw_text(origin_message,
-                                        size=28,
-                                        textlen=24,
-                                        biliemoji_infos=emoji_infos)
-                draw_image.paste(paste_image, (x, y), mask=paste_image)
+                        response = requests.get(image)
+                        paste_image = Image.open(BytesIO(response.content))
+                        paste_image = image_resize2(image=paste_image, size=(253, 253), overturn=True)
+                        paste_image = circle_corner(paste_image, 15)
+                        draw_image.paste(paste_image, (int(x + print_x * (253 + 5)), int(y + print_y * (253 + 5))),
+                                         mask=paste_image)
 
                 returnpath = cachepath + 'bili动态/'
                 if not os.path.exists(returnpath):
                     os.makedirs(returnpath)
                 returnpath = returnpath + date + '_' + timenow + '_' + random_num + '.png'
                 draw_image.save(returnpath)
-                logger.info("bili-push_绘图成功")
+                logger.info("bili-push_draw_绘图成功")
                 code = 2
 
-    # 图文动态
-    elif bilitype == 2:
-        card_message = bilidata["item"]["description"]
-        card_images = bilidata["item"]["pictures"]
-        images = []
-        for card_image in card_images:
-            image_url = card_image["img_src"]
-            images.append(image_url)
-        try:
-            emoji_infos = data["display"]["emoji_info"]["emoji_details"]
-        except Exception as e:
-            emoji_infos = []
+        # 文字动态
+        elif bilitype == 4:
+            card_message = bilidata["item"]["content"]
+            try:
+                emoji_infos = data["display"]["emoji_info"]["emoji_details"]
+            except Exception as e:
+                emoji_infos = []
 
-        if runcode == 1:  # 代码折叠
-            logger.info("bili-push_开始绘图")
-            # 计算图片长度
+            if run:
+                logger.info("bili-push_draw_4_开始绘图")
+                fortsize = 30
+                font = ImageFont.truetype(font=fontfile, size=fortsize)
+
+                # 计算图片长度
+                image_x = 900
+                image_y = 140  # add base y
+                image_y += 125 + 35  # add hear and space
+                paste_image = draw_text(card_message,
+                                        size=30,
+                                        textlen=24,
+                                        biliemoji_infos=emoji_infos,
+                                        calculate=True)
+                w, h = paste_image.size
+                image_y += h
+
+                image_x = int(image_x)
+                image_y = int(image_y)
+                draw_image = new_background(image_x, image_y)
+                draw = ImageDraw.Draw(draw_image)
+                # 开始往图片添加内容
+                # 添加头像
+                response = requests.get(biliface)
+                image_face = Image.open(BytesIO(response.content))
+                image_face = image_face.resize((125, 125))
+                imageround = get_emoji("imageround")
+                imageround = imageround.resize((129, 129))
+                draw_image.paste(imageround, (73, 73), mask=imageround)
+                imageround = imageround.resize((125, 125))
+                draw_image.paste(image_face, (75, 75), mask=imageround)
+
+                # 添加名字
+                cache_font = ImageFont.truetype(font=fontfile, size=35)
+                draw.text(xy=(230, 85), text=biliname, fill=(0, 0, 0), font=cache_font)
+
+                # 添加日期
+                draw.text(xy=(230, 145), text=timestamp, fill=(100, 100, 100), font=font)
+
+                # 添加动态内容
+                x = 75
+                y = 230
+                paste_image = draw_text(card_message,
+                                        size=30,
+                                        textlen=24,
+                                        biliemoji_infos=emoji_infos)
+                draw_image.paste(paste_image, (x, y), mask=paste_image)
+                w, h = paste_image.size
+
+                returnpath = cachepath + 'bili动态/'
+                if not os.path.exists(returnpath):
+                    os.makedirs(returnpath)
+                returnpath = returnpath + date + '_' + timenow + '_' + random_num + '.png'
+                draw_image.save(returnpath)
+                logger.info("bili-push_draw_绘图成功")
+                code = 2
+
+        # 投稿视频
+        elif bilitype == 8:
+            card_message = bilidata["dynamic"]
+            card_title = bilidata["title"]
+            card_vmessage = bilidata["desc"]
+            card_image = bilidata["pic"]
+            try:
+                emoji_infos = data["display"]["emoji_info"]["emoji_details"]
+            except Exception as e:
+                emoji_infos = []
+
+            # 开始绘图
             image_x = 900
-            image_y = 140  # add base y
-            image_y += 125 + 35  # add hear and space
+            image_y = 500
             # 添加文字长度
             paste_image = draw_text(card_message,
                                     size=30,
@@ -1215,50 +1700,10 @@ def get_draw(data):
                                     calculate=True)
             w, h = paste_image.size
             image_y += h
-            # 添加图片长度
-            imagelen = len(images)
-            if imagelen == 1:
-                response = requests.get(images[0])
-                addimage = Image.open(BytesIO(response.content))
-                w, h = addimage.size
-                if h / w >= 1.8:
-                    x = 770
-                    y = int(770 * h / w)
-                    addimage = addimage.resize((x, y))
-                    w = 770
-                    h = int(w * 1.8)
-                    addimage = image_resize2(addimage, (w, h), overturn=True)
-                elif h / w <= 0.5:
-                    y = 385
-                    x = int(385 / h * w)
-                    addimage = addimage.resize((x, y))
-                    w = 770
-                    h = 385
-                    addimage = image_resize2(addimage, (w, h), overturn=True)
-                else:
-                    y = int(770 * h / w)
-                    x = 770
-                    addimage = addimage.resize((x, y))
-                    addimage = image_resize2(addimage, (x, y), overturn=True)
-                image_y += y
-            elif imagelen == 2:
-                # 2图，图大小382
-                image_y += 382 + 10
-            elif imagelen <= 4:
-                # 4图，图大小382
-                image_y += 764 + 15
-            # elif imagelen <= 6:
-            else:
-                # 6图，图大小253
-                image_y += 10
-                while imagelen >= 1:
-                    imagelen -= 3
-                    image_y += 253 + 5
 
-            image_x = int(image_x)
-            image_y = int(image_y)
             draw_image = new_background(image_x, image_y)
             draw = ImageDraw.Draw(draw_image)
+
             # 开始往图片添加内容
             # 添加头像
             response = requests.get(biliface)
@@ -1280,399 +1725,239 @@ def get_draw(data):
             # 添加动态内容
             x = 75
             y = 230
-            paste_image = draw_text(card_message,
-                                    size=30,
-                                    textlen=24,
-                                    biliemoji_infos=emoji_infos)
-            draw_image.paste(paste_image, (x, y), mask=paste_image)
-            w, h = paste_image.size
+            print_x = -1
+            print_y = 0
+            num = 0
+            jump_num = 0
 
+            textnum = 0
+            for text in card_message:
+                if jump_num > 0:
+                    jump_num -= 1
+                else:
+                    print_x += 1
+                    textnum += 1
+                    num += 1
+                    # 打印换行
+                    if num > 25 or text == "\n":
+                        num = 1
+                        print_y += 1.2
+                        print_x = 0
+                        if text == "\n":
+                            print_x = -1
+
+                    # 检测biliemoji
+                    emoji_code = ""
+                    if text == "[":
+                        testnum = 1
+                        while testnum <= 55:
+                            testnum += 1
+                            findnum = textnum + testnum
+                            if card_message[findnum] == "]":
+                                emoji_code = "[" + card_message[textnum:findnum] + "]"
+                                jump_num = len(emoji_code) - 1
+                                testnum = 60
+                        if emoji_code != "":
+                            # 粘贴biliemoji
+                            for emoji_info in emoji_infos:
+                                emoji_name = emoji_info["emoji_name"]
+                                if emoji_name == emoji_code:
+                                    emoji_url = emoji_info["url"]
+                                    response = requests.get(emoji_url)
+                                    paste_image = Image.open(BytesIO(response.content))
+                                    paste_image = paste_image.resize((int(fortsize * 1.2), int(fortsize * 1.2)))
+                                    draw_image.paste(paste_image,
+                                                     (int(x + print_x * fortsize), int(y + print_y * fortsize)))
+                                    print_x += 0.5
+
+                    if emoji_code == "":
+                        # 检测是否半格字符
+                        if not is_emoji(font):
+                            # 打印文字
+                            draw.text(xy=(int(x + print_x * fortsize), int(y + print_y * fortsize)), text=text,
+                                      fill=(0, 0, 0), font=font)
+                            if text in half_text:
+                                print_x -= 0.4
+                        else:
+                            # 打印表情
+                            paste_image = get_emoji(font)
+                            paste_image = paste_image.resize((int(fortsize * 1.1), int(fortsize * 1.1)))
+                            draw_image.paste(paste_image,
+                                             (int(x + print_x * fortsize), int(y + print_y * fortsize)))
+
+            y = int(y + (print_y + 1.5) * fortsize)
             x = 65
-            y = 230 + h
+            # 添加视频消息边沿
+            paste_image = Image.new("RGB", (776, 204), "#FFFFFF")
+            paste_image = circle_corner(paste_image, 15)
+            draw_image.paste(paste_image, (x - 2, y - 2), mask=paste_image)
+            # 添加视频消息框
+            paste_image = Image.new("RGB", (772, 200), "#f8fbfd")
+            paste_image = circle_corner(paste_image, 15)
+            draw_image.paste(paste_image, (x, y), mask=paste_image)
+            # 添加视频图像
+            x += 2
+            y += 2
+            response = requests.get(card_image)
+            paste_image = Image.open(BytesIO(response.content))
+            paste_image = image_resize2(paste_image, (313, 196))
+            paste_image = circle_corner(paste_image, 15)
+            draw_image.paste(paste_image, (x, y), mask=paste_image)
+            # 添加视频标题
+            x += 313 + 15
+            y += 15
+            if len(card_title) > 26:
+                card_title = card_title[0:26] + "…"
 
             print_x = -1
             print_y = 0
+            num = 0
+            jump_num = 0
+            cache_font = ImageFont.truetype(font=fontfile, size=27)
 
-            imagelen = len(images)
-            if imagelen == 1:
-                paste_image = circle_corner(addimage, 15)
-                draw_image.paste(paste_image, (int(x), int(y)), mask=paste_image)
-            elif imagelen <= 4:
-                # 2图，图大小382
-                for image in images:
+            textnum = 0
+            for text in card_title:
+                if jump_num > 0:
+                    jump_num -= 1
+                else:
                     print_x += 1
-                    if print_x >= 2:
+                    textnum += 1
+                    num += 1
+                    # 打印换行
+                    if num > 14 or text == "\n":
+                        num = 1
+                        print_y += 1.2
                         print_x = 0
-                        print_y += 1
+                        if text == "\n":
+                            print_x = -1
 
-                    response = requests.get(image)
-                    paste_image = Image.open(BytesIO(response.content))
-                    paste_image = image_resize2(image=paste_image, size=(382, 382), overturn=True)
-                    paste_image = circle_corner(paste_image, 15)
-                    draw_image.paste(paste_image, (int(x + print_x * (382 + 5)), int(y + print_y * (382 + 5))),
-                                     mask=paste_image)
-            # elif imagelen <= 6:
-            else:
-                # 6图，图大小253
-                for image in images:
-                    print_x += 1
-                    if print_x >= 3:
-                        print_x = 0
-                        print_y += 1
+                    # 检测biliemoji
+                    emoji_code = ""
+                    if text == "[":
+                        testnum = 1
+                        while testnum <= 55:
+                            testnum += 1
+                            findnum = textnum + testnum
+                            if card_message[findnum] == "]":
+                                emoji_code = "[" + card_message[textnum:findnum] + "]"
+                                jump_num = len(emoji_code) - 1
+                                testnum = 60
+                        if emoji_code != "":
+                            # 粘贴biliemoji
+                            for emoji_info in emoji_infos:
+                                emoji_name = emoji_info["emoji_name"]
+                                if emoji_name == emoji_code:
+                                    emoji_url = emoji_info["url"]
+                                    response = requests.get(emoji_url)
+                                    paste_image = Image.open(BytesIO(response.content))
+                                    paste_image = paste_image.resize((int(fortsize * 1.2), int(fortsize * 1.2)))
+                                    draw_image.paste(paste_image,
+                                                     (int(x + print_x * fortsize), int(y + print_y * fortsize)))
+                                    print_x += 0.5
 
-                    response = requests.get(image)
-                    paste_image = Image.open(BytesIO(response.content))
-                    paste_image = image_resize2(image=paste_image, size=(253, 253), overturn=True)
-                    paste_image = circle_corner(paste_image, 15)
-                    draw_image.paste(paste_image, (int(x + print_x * (253 + 5)), int(y + print_y * (253 + 5))),
-                                     mask=paste_image)
+                    if emoji_code == "":
+                        # 检测是否半格字符
+                        if not is_emoji(font):
+                            # 打印文字
+                            draw.text(xy=(int(x + print_x * fortsize), int(y + print_y * fortsize)), text=text,
+                                      fill=(0, 0, 0), font=cache_font)
+                            if text in half_text:
+                                print_x -= 0.4
+                        else:
+                            # 打印表情
+                            paste_image = get_emoji(font)
+                            paste_image = paste_image.resize((int(fortsize * 1.1), int(fortsize * 1.1)))
+                            draw_image.paste(paste_image,
+                                             (int(x + print_x * fortsize), int(y + print_y * fortsize)))
 
-            returnpath = cachepath + 'bili动态/'
-            if not os.path.exists(returnpath):
-                os.makedirs(returnpath)
-            returnpath = returnpath + date + '_' + timenow + '_' + random_num + '.png'
-            draw_image.save(returnpath)
-            logger.info("bili-push_绘图成功")
-            code = 2
+            # 添加视频简介
+            x += 313 + 15
+            y += 100
+            if len(card_vmessage) > 26:
+                card_vmessage = card_vmessage[0:26] + "…"
 
-    # 文字动态
-    elif bilitype == 4:
-        card_message = bilidata["item"]["content"]
-        try:
-            emoji_infos = data["display"]["emoji_info"]["emoji_details"]
-        except Exception as e:
-            emoji_infos = []
+            x = 65 + 2 + 313 + 15
+            print_x = -1
+            print_y = 0
+            num = 0
+            jump_num = 0
+            cache_font = ImageFont.truetype(font=fontfile, size=24)
 
-        if runcode == 1:
-            logger.info("bili-push_开始绘图")
-            fortsize = 30
-            font = ImageFont.truetype(font=fontfile, size=fortsize)
-
-            # 计算图片长度
-            image_x = 900
-            image_y = 140  # add base y
-            image_y += 125 + 35  # add hear and space
-            paste_image = draw_text(card_message,
-                                    size=30,
-                                    textlen=24,
-                                    biliemoji_infos=emoji_infos,
-                                    calculate=True)
-            w, h = paste_image.size
-            image_y += h
-
-            image_x = int(image_x)
-            image_y = int(image_y)
-            draw_image = new_background(image_x, image_y)
-            draw = ImageDraw.Draw(draw_image)
-            # 开始往图片添加内容
-            # 添加头像
-            response = requests.get(biliface)
-            image_face = Image.open(BytesIO(response.content))
-            image_face = image_face.resize((125, 125))
-            imageround = get_emoji("imageround")
-            imageround = imageround.resize((129, 129))
-            draw_image.paste(imageround, (73, 73), mask=imageround)
-            imageround = imageround.resize((125, 125))
-            draw_image.paste(image_face, (75, 75), mask=imageround)
-
-            # 添加名字
-            cache_font = ImageFont.truetype(font=fontfile, size=35)
-            draw.text(xy=(230, 85), text=biliname, fill=(0, 0, 0), font=cache_font)
-
-            # 添加日期
-            draw.text(xy=(230, 145), text=timestamp, fill=(100, 100, 100), font=font)
-
-            # 添加动态内容
-            x = 75
-            y = 230
-            paste_image = draw_text(card_message,
-                                    size=30,
-                                    textlen=24,
-                                    biliemoji_infos=emoji_infos)
-            draw_image.paste(paste_image, (x, y), mask=paste_image)
-            w, h = paste_image.size
-
-            returnpath = cachepath + 'bili动态/'
-            if not os.path.exists(returnpath):
-                os.makedirs(returnpath)
-            returnpath = returnpath + date + '_' + timenow + '_' + random_num + '.png'
-            draw_image.save(returnpath)
-            logger.info("bili-push_绘图成功")
-            code = 2
-
-    # 投稿视频
-    elif bilitype == 8:
-        card_message = bilidata["dynamic"]
-        card_title = bilidata["title"]
-        card_vmessage = bilidata["desc"]
-        card_image = bilidata["pic"]
-        try:
-            emoji_infos = data["display"]["emoji_info"]["emoji_details"]
-        except Exception as e:
-            emoji_infos = []
-
-        # 开始绘图
-        image_x = 900
-        image_y = 500
-        # 添加文字长度
-        paste_image = draw_text(card_message,
-                                size=30,
-                                textlen=24,
-                                biliemoji_infos=emoji_infos,
-                                calculate=True)
-        w, h = paste_image.size
-        image_y += h
-
-        draw_image = new_background(image_x, image_y)
-        draw = ImageDraw.Draw(draw_image)
-
-        # 开始往图片添加内容
-        # 添加头像
-        response = requests.get(biliface)
-        image_face = Image.open(BytesIO(response.content))
-        image_face = image_face.resize((125, 125))
-        imageround = get_emoji("imageround")
-        imageround = imageround.resize((129, 129))
-        draw_image.paste(imageround, (73, 73), mask=imageround)
-        imageround = imageround.resize((125, 125))
-        draw_image.paste(image_face, (75, 75), mask=imageround)
-
-        # 添加名字
-        cache_font = ImageFont.truetype(font=fontfile, size=35)
-        draw.text(xy=(230, 85), text=biliname, fill=(0, 0, 0), font=cache_font)
-
-        # 添加日期
-        draw.text(xy=(230, 145), text=timestamp, fill=(100, 100, 100), font=font)
-
-        # 添加动态内容
-        x = 75
-        y = 230
-        print_x = -1
-        print_y = 0
-        num = 0
-        jump_num = 0
-
-        textnum = 0
-        for text in card_message:
-            if jump_num > 0:
-                jump_num -= 1
-            else:
-                print_x += 1
-                textnum += 1
-                num += 1
-                # 打印换行
-                if num > 25 or text == "\n":
-                    num = 1
-                    print_y += 1.2
-                    print_x = 0
-                    if text == "\n":
-                        print_x = -1
-
-                # 检测biliemoji
-                emoji_code = ""
-                if text == "[":
-                    testnum = 1
-                    while testnum <= 55:
-                        testnum += 1
-                        findnum = textnum + testnum
-                        if card_message[findnum] == "]":
-                            emoji_code = "[" + card_message[textnum:findnum] + "]"
-                            jump_num = len(emoji_code) - 1
-                            testnum = 60
-                    if emoji_code != "":
-                        # 粘贴biliemoji
-                        for emoji_info in emoji_infos:
-                            emoji_name = emoji_info["emoji_name"]
-                            if emoji_name == emoji_code:
-                                emoji_url = emoji_info["url"]
-                                response = requests.get(emoji_url)
-                                paste_image = Image.open(BytesIO(response.content))
-                                paste_image = paste_image.resize((int(fortsize * 1.2), int(fortsize * 1.2)))
-                                draw_image.paste(paste_image,
-                                                 (int(x + print_x * fortsize), int(y + print_y * fortsize)))
-                                print_x += 0.5
-
-                if emoji_code == "":
-                    # 检测是否半格字符
-                    if not is_emoji(font):
-                        # 打印文字
-                        draw.text(xy=(int(x + print_x * fortsize), int(y + print_y * fortsize)), text=text,
-                                  fill=(0, 0, 0), font=font)
-                        if text in half_text:
-                            print_x -= 0.4
-                    else:
-                        # 打印表情
-                        paste_image = get_emoji(font)
-                        paste_image = paste_image.resize((int(fortsize * 1.1), int(fortsize * 1.1)))
-                        draw_image.paste(paste_image,
-                                         (int(x + print_x * fortsize), int(y + print_y * fortsize)))
-
-        y = int(y + (print_y + 1.5) * fortsize)
-        x = 65
-        # 添加视频消息边沿
-        paste_image = Image.new("RGB", (776, 204), "#FFFFFF")
-        paste_image = circle_corner(paste_image, 15)
-        draw_image.paste(paste_image, (x - 2, y - 2), mask=paste_image)
-        # 添加视频消息框
-        paste_image = Image.new("RGB", (772, 200), "#f8fbfd")
-        paste_image = circle_corner(paste_image, 15)
-        draw_image.paste(paste_image, (x, y), mask=paste_image)
-        # 添加视频图像
-        x += 2
-        y += 2
-        response = requests.get(card_image)
-        paste_image = Image.open(BytesIO(response.content))
-        paste_image = image_resize2(paste_image, (313, 196))
-        paste_image = circle_corner(paste_image, 15)
-        draw_image.paste(paste_image, (x, y), mask=paste_image)
-        # 添加视频标题
-        x += 313 + 15
-        y += 15
-        if len(card_title) > 26:
-            card_title = card_title[0:26] + "…"
-
-        print_x = -1
-        print_y = 0
-        num = 0
-        jump_num = 0
-        cache_font = ImageFont.truetype(font=fontfile, size=27)
-
-        textnum = 0
-        for text in card_title:
-            if jump_num > 0:
-                jump_num -= 1
-            else:
-                print_x += 1
-                textnum += 1
-                num += 1
-                # 打印换行
-                if num > 14 or text == "\n":
-                    num = 1
-                    print_y += 1.2
-                    print_x = 0
-                    if text == "\n":
-                        print_x = -1
-
-                # 检测biliemoji
-                emoji_code = ""
-                if text == "[":
-                    testnum = 1
-                    while testnum <= 55:
-                        testnum += 1
-                        findnum = textnum + testnum
-                        if card_message[findnum] == "]":
-                            emoji_code = "[" + card_message[textnum:findnum] + "]"
-                            jump_num = len(emoji_code) - 1
-                            testnum = 60
-                    if emoji_code != "":
-                        # 粘贴biliemoji
-                        for emoji_info in emoji_infos:
-                            emoji_name = emoji_info["emoji_name"]
-                            if emoji_name == emoji_code:
-                                emoji_url = emoji_info["url"]
-                                response = requests.get(emoji_url)
-                                paste_image = Image.open(BytesIO(response.content))
-                                paste_image = paste_image.resize((int(fortsize * 1.2), int(fortsize * 1.2)))
-                                draw_image.paste(paste_image,
-                                                 (int(x + print_x * fortsize), int(y + print_y * fortsize)))
-                                print_x += 0.5
-
-                if emoji_code == "":
-                    # 检测是否半格字符
-                    if not is_emoji(font):
-                        # 打印文字
-                        draw.text(xy=(int(x + print_x * fortsize), int(y + print_y * fortsize)), text=text,
-                                  fill=(0, 0, 0), font=cache_font)
-                        if text in half_text:
-                            print_x -= 0.4
-                    else:
-                        # 打印表情
-                        paste_image = get_emoji(font)
-                        paste_image = paste_image.resize((int(fortsize * 1.1), int(fortsize * 1.1)))
-                        draw_image.paste(paste_image,
-                                         (int(x + print_x * fortsize), int(y + print_y * fortsize)))
-
-        # 添加视频简介
-        x += 313 + 15
-        y += 100
-        if len(card_vmessage) > 26:
-            card_vmessage = card_vmessage[0:26] + "…"
-
-        x = 65 + 2 + 313 + 15
-        print_x = -1
-        print_y = 0
-        num = 0
-        jump_num = 0
-        cache_font = ImageFont.truetype(font=fontfile, size=24)
-
-        textnum = 0
-        for text in card_vmessage:
-            if jump_num > 0:
-                jump_num -= 1
-            elif print_y > 2 and print_x >= 12:
-                text = "…"
-            else:
-                if print_x == 11:
+            textnum = 0
+            for text in card_vmessage:
+                if jump_num > 0:
+                    jump_num -= 1
+                elif print_y > 2 and print_x >= 12:
                     text = "…"
-                print_x += 1
-                textnum += 1
-                num += 1
-                # 打印换行
-                if num > 15 or text == "\n":
-                    num = 1
-                    print_y += 1.2
-                    print_x = 0
-                    if text == "\n":
-                        print_x = -1
+                else:
+                    if print_x == 11:
+                        text = "…"
+                    print_x += 1
+                    textnum += 1
+                    num += 1
+                    # 打印换行
+                    if num > 15 or text == "\n":
+                        num = 1
+                        print_y += 1.2
+                        print_x = 0
+                        if text == "\n":
+                            print_x = -1
 
-                # 检测biliemoji
-                emoji_code = ""
-                if text == "[":
-                    testnum = 1
-                    while testnum <= 55:
-                        testnum += 1
-                        findnum = textnum + testnum
-                        if card_message[findnum] == "]":
-                            emoji_code = "[" + card_message[textnum:findnum] + "]"
-                            jump_num = len(emoji_code) - 1
-                            testnum = 60
-                    if emoji_code != "":
-                        # 粘贴biliemoji
-                        for emoji_info in emoji_infos:
-                            emoji_name = emoji_info["emoji_name"]
-                            if emoji_name == emoji_code:
-                                emoji_url = emoji_info["url"]
-                                response = requests.get(emoji_url)
-                                paste_image = Image.open(BytesIO(response.content))
-                                paste_image = paste_image.resize((int(fortsize * 1.2), int(fortsize * 1.2)))
-                                draw_image.paste(paste_image,
-                                                 (int(x + print_x * fortsize), int(y + print_y * fortsize)))
-                                print_x += 0.5
+                    # 检测biliemoji
+                    emoji_code = ""
+                    if text == "[":
+                        testnum = 1
+                        while testnum <= 55:
+                            testnum += 1
+                            findnum = textnum + testnum
+                            if card_message[findnum] == "]":
+                                emoji_code = "[" + card_message[textnum:findnum] + "]"
+                                jump_num = len(emoji_code) - 1
+                                testnum = 60
+                        if emoji_code != "":
+                            # 粘贴biliemoji
+                            for emoji_info in emoji_infos:
+                                emoji_name = emoji_info["emoji_name"]
+                                if emoji_name == emoji_code:
+                                    emoji_url = emoji_info["url"]
+                                    response = requests.get(emoji_url)
+                                    paste_image = Image.open(BytesIO(response.content))
+                                    paste_image = paste_image.resize((int(fortsize * 1.2), int(fortsize * 1.2)))
+                                    draw_image.paste(paste_image,
+                                                     (int(x + print_x * fortsize), int(y + print_y * fortsize)))
+                                    print_x += 0.5
 
-                if emoji_code == "":
-                    # 检测是否半格字符
-                    if not is_emoji(font):
-                        # 打印文字
-                        draw.text(xy=(int(x + print_x * fortsize), int(y + print_y * fortsize)), text=text,
-                                  fill=(100, 100, 100), font=cache_font)
-                        if text in half_text:
-                            print_x -= 0.4
-                    else:
-                        # 打印表情
-                        paste_image = get_emoji(font)
-                        paste_image = paste_image.resize((int(fortsize * 1.1), int(fortsize * 1.1)))
-                        draw_image.paste(paste_image,
-                                         (int(x + print_x * fortsize), int(y + print_y * fortsize)))
+                    if emoji_code == "":
+                        # 检测是否半格字符
+                        if not is_emoji(font):
+                            # 打印文字
+                            draw.text(xy=(int(x + print_x * fortsize), int(y + print_y * fortsize)), text=text,
+                                      fill=(100, 100, 100), font=cache_font)
+                            if text in half_text:
+                                print_x -= 0.4
+                        else:
+                            # 打印表情
+                            paste_image = get_emoji(font)
+                            paste_image = paste_image.resize((int(fortsize * 1.1), int(fortsize * 1.1)))
+                            draw_image.paste(paste_image,
+                                             (int(x + print_x * fortsize), int(y + print_y * fortsize)))
 
-        returnpath = cachepath + 'bili动态/'
-        if not os.path.exists(returnpath):
-            os.makedirs(returnpath)
-        returnpath = returnpath + date + '_' + timenow + '_' + random_num + '.png'
-        draw_image.save(returnpath)
-        logger.info("bili-push_绘图成功")
-        code = 2
-    logger.info('---结束获取数据----------')
+            returnpath = cachepath + 'bili动态/'
+            if not os.path.exists(returnpath):
+                os.makedirs(returnpath)
+            returnpath = returnpath + date + '_' + timenow + '_' + random_num + '.png'
+            draw_image.save(returnpath)
+            logger.info("bili-push_draw_绘图成功")
+            code = 2
+        logger.info(f"bili-push_draw_结束获取消息")
 
+    except Exception as e:
+        logger.error(f"获取消息出错，请讲此消息反馈给开发者。动态id：{dynamicid}")
+        message_title = ""
+        message_body = ""
+        message_url = ""
+        message_images = []
+        code = 0
     return {
         "code": code,
         "draw_path": returnpath,
@@ -1731,7 +2016,7 @@ async def _(bot: Bot, messageevent: MessageEvent):
     time_s = str(time.strftime("%S", time.localtime()))
     timeshort = time_h + time_m + time_s
 
-    cachepath = basepath + "cache/draw/" + date_year + '/' + date_month + '/' + date_day + '/'
+    cachepath = basepath + f"cache/draw/{date_year}/{date_month}/{date_day}/"
 
     # 尝试新建数据库
     try:
@@ -1760,7 +2045,7 @@ async def _(bot: Bot, messageevent: MessageEvent):
             message = "请添加uid来查询最新动态"
         else:
             uid = command2
-            logger.info('-----------------------开始获取信息----------')
+            logger.info(f"开始获取信息-{uid}")
             url = 'https://api.vc.bilibili.com/dynamic_svr/v1/dynamic_svr/space_history?host_uid=' + uid
             s = json.dumps({'key1': 'value1', 'key2': 'value2'})
             h = {'Content-Type': 'application/x-www-form-urlencoded'}
@@ -1772,8 +2057,13 @@ async def _(bot: Bot, messageevent: MessageEvent):
                 logger.info('获取动态图片并发送')
                 # 获取动态图片并发送
                 draw_info = get_draw(returnjson["data"]["cards"][0])
-                code = draw_info["code"]
-                returnpath = draw_info["draw_path"]
+                return_code = draw_info["code"]
+                if return_code == 0:
+                    code = 1
+                    message = "不支持动态类型"
+                else:
+                    returnpath = draw_info["draw_path"]
+                    code = 2
             else:
                 logger.info('returncode!=0')
                 code = 1
@@ -1944,11 +2234,17 @@ async def _(bot: Bot, messageevent: MessageEvent):
         code = 1
         message = "Bili_Push：\n/添加订阅\n/删除订阅\n/查看订阅"
 
+    # 消息处理完毕，返回发送的消息
     if code == 1:
         msg = MessageSegment.text(message)
         await get_new.finish(msg)
     elif code == 2:
         msg = MessageSegment.image(r"file:///" + returnpath)
+        await get_new.finish(msg)
+    elif code == 3:
+        msg1 = MessageSegment.image(r"file:///" + returnpath)
+        msg2 = MessageSegment.text(message)
+        msg = msg1 + msg2
         await get_new.finish(msg)
     else:
         await get_new.finish()
@@ -1957,8 +2253,8 @@ minute = "*/" + waittime
 
 
 @scheduler.scheduled_job("cron", minute=minute, id="job_0")
-async def run_every_6_minute():
-    logger.info("run bili push find")
+async def run_bili_push():
+    logger.info("run bili_push")
     # ############获取动态更新，并绘制############
     import time
     date = str(time.strftime("%Y-%m-%d", time.localtime()))
@@ -1971,7 +2267,7 @@ async def run_every_6_minute():
     time_m = str(time.strftime("%M", time.localtime()))
     time_s = str(time.strftime("%S", time.localtime()))
     timeshort = time_h + time_m + time_s
-    cachepath = basepath + "cache/draw/" + date_year + '/' + date_month + '/' + date_day + '/'
+    cachepath = basepath + f"cache/draw/{date_year}/{date_month}/{date_day}/"
     random_num = str(random.randint(1000, 9999))
     message = ""
 
@@ -2032,17 +2328,16 @@ async def run_every_6_minute():
                             subscriptionlist.append(uid)
 
             for uid in subscriptionlist:
-                logger.info('-----------------------开始获取信息----------')
+                logger.info(f"开始获取信息-{uid}")
                 url = 'https://api.vc.bilibili.com/dynamic_svr/v1/dynamic_svr/space_history?host_uid=' + uid
                 s = json.dumps({'key1': 'value1', 'key2': 'value2'})
                 h = {'Content-Type': 'application/x-www-form-urlencoded'}
                 returnjson = requests.post(url, data=s, headers=h).text
                 returnjson = json.loads(returnjson)
                 returncode = returnjson["code"]
-                logger.info('returncode:' + str(returncode))
                 return_datas = returnjson["data"]
                 return_datas = return_datas["cards"]
-                logger.info('获取数据成功')
+                logger.info('获取up主动态列表成功')
                 # 比较已保存内容
                 try:
                     # 缓存文件，存储待发送动态 如果文件不存在，会自动在当前目录中创建
@@ -2055,7 +2350,7 @@ async def run_every_6_minute():
                     cursor.close()
                     conn.close()
                 except Exception as e:
-                    logger.info('已存在订阅数据库，开始读取数据')
+                    logger.info("已存在推送数据库，开始读取数据")
 
                 conn = sqlite3.connect(livedb)
                 cursor = conn.cursor()
@@ -2077,7 +2372,6 @@ async def run_every_6_minute():
                             cursor.execute(f"replace into wait_push2(dynamicid,uid,draw_path,message_title,message_url,"
                                            f'message_body,message_images) values("{dynamicid}","{uid}","{draw_path}",'
                                            f'"{message_title}","{message_url}","{message_body}","{message_images}")')
-
                 cursor.close()
                 conn.commit()
                 conn.close()
