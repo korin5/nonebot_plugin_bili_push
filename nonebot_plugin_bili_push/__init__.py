@@ -1307,19 +1307,19 @@ def get_draw(data):
                         os.makedirs(returnpath)
                     returnpath = returnpath + date + '_' + timenow + '_' + random_num + '.png'
                     draw_image.save(returnpath)
-                    print("bili-push_绘图成功")
+                    logger.info("bili-push_绘图成功")
                     code = 2
 
             # 已下播的直播间动态
             elif origin_type == 1024:
                 origin_message = "直播已结束"
-                print("bili-push_开始拼接文字")
+                logger.info("bili-push_开始拼接文字")
                 if run:
                     message_title = biliname + "转发了直播"
                     message_body = card_message + "\n转发直播：\n" + origin_message
                     if len(message_body) > 80:
                         message_body = message_body[0:79] + "…"
-                print("bili-push_开始绘图")
+                logger.info("bili-push_开始绘图")
                 if run:
                     fortsize = 30
                     font = ImageFont.truetype(font=fontfile, size=fortsize)
@@ -1409,7 +1409,7 @@ def get_draw(data):
                         os.makedirs(returnpath)
                     returnpath = returnpath + date + '_' + timenow + '_' + random_num + '.png'
                     draw_image.save(returnpath)
-                    print("bili-push_绘图成功")
+                    logger.info("bili-push_绘图成功")
                     code = 2
 
             # 正在直播的直播间动态
@@ -1420,13 +1420,13 @@ def get_draw(data):
                 origin_data = json.loads(origin_data)
                 origin_title = origin_data["live_play_info"]["title"]
                 origin_image = origin_data["live_play_info"]["cover"]
-                print("bili-push_开始拼接文字")
+                logger.info("bili-push_开始拼接文字")
                 if run:
                     message_title = biliname + "转发了直播"
                     message_body = card_message + "\n转发直播：\n" + origin_title
                     if len(message_body) > 80:
                         message_body = message_body[0:79] + "…"
-                print("bili-push_开始绘图")
+                logger.info("bili-push_开始绘图")
                 if run:
                     fortsize = 30
                     font = ImageFont.truetype(font=fontfile, size=fortsize)
@@ -1523,7 +1523,7 @@ def get_draw(data):
                         os.makedirs(returnpath)
                     returnpath = returnpath + date + '_' + timenow + '_' + random_num + '.png'
                     draw_image.save(returnpath)
-                    print("bili-push_绘图成功")
+                    logger.info("bili-push_绘图成功")
                     code = 2
 
         # 图文动态
@@ -1694,7 +1694,7 @@ def get_draw(data):
                     message_body = message_body[0:79] + "……"
             logger.info("bili-push_开始绘图")
             if run:
-                print("bili-push_开始绘图")
+                logger.info("bili-push_开始绘图")
                 fortsize = 30
                 font = ImageFont.truetype(font=fontfile, size=fortsize)
 
