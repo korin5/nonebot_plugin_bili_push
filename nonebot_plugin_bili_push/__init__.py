@@ -2348,9 +2348,8 @@ async def run_bili_push():
     random_num = str(random.randint(1000, 9999))
     message = ""
 
-    botid = str(nonebot.get_bot())
-    botid = botid.removeprefix("Bot(type='OneBot V11', self_id='")
-    botid = botid.removesuffix("')")
+    botids = list(nonebot.get_bots())
+    botid = str(botids[0])
 
     friends = await nonebot.get_bot().get_friend_list()
     friendlist = []
@@ -2450,22 +2449,28 @@ async def run_bili_push():
                 cursor = conn.cursor()
                 for return_data in return_datas:
                     dynamicid = str(return_data["desc"]["dynamic_id"])
-
                     cursor.execute("SELECT * FROM 'wait_push2' WHERE dynamicid = '" + dynamicid + "'")
                     data = cursor.fetchone()
                     if not data:
-                        return_draw = get_draw(return_data)
-                        if return_draw["code"] != 2:
-                            logger.info("不支持类型")
-                        else:
-                            draw_path = return_draw["draw_path"]
-                            message_title = return_draw["draw_path"]
-                            message_url = return_draw["draw_path"]
-                            message_body = return_draw["draw_path"]
-                            message_images = str({"images": return_draw["draw_path"]})
-                            cursor.execute(f"replace into wait_push2(dynamicid,uid,draw_path,message_title,message_url,"
-                                           f'message_body,message_images) values("{dynamicid}","{uid}","{draw_path}",'
-                                           f'"{message_title}","{message_url}","{message_body}","{message_images}")')
+                        dyma_data = time.localtime(int(return_data["desc"]["timestamp"]))
+                        dyma_data = int(time.strftime("%Y%m%d%H%M%S", dyma_data))
+                        now_data = int(dateshort + timeshort)
+                        time_distance = now_data - dyma_data
+                        # 不推送3天以前的动态
+                        if time_distance < 300:
+                            return_draw = get_draw(return_data)
+                            if return_draw["code"] != 2:
+                                logger.info("不支持类型")
+                            else:
+                                draw_path = return_draw["draw_path"]
+                                message_title = return_draw["draw_path"]
+                                message_url = return_draw["draw_path"]
+                                message_body = return_draw["draw_path"]
+                                message_images = str({"images": return_draw["draw_path"]})
+                                cursor.execute(f"replace into wait_push2(dynamicid,uid,draw_path,message_title,"
+                                               f'message_url,message_body,message_images) values("{dynamicid}","{uid}",'
+                                               f'"{draw_path}","{message_title}","{message_url}","{message_body}",'
+                                               f'"{message_images}")')
                 cursor.close()
                 conn.commit()
                 conn.close()
