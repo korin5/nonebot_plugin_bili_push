@@ -2102,17 +2102,32 @@ async def _(bot: Bot, messageevent: MessageEvent):
 
     cachepath = basepath + f"cache/draw/{date_year}/{date_month}/{date_day}/"
 
-    # 尝试新建数据库
-    try:
-        # 数据库文件 如果文件不存在，会自动在当前目录中创建
-        conn = sqlite3.connect(livedb)
-        cursor = conn.cursor()
-        cursor.execute('create table subscriptionlist '
-                       '(id int(10) primary key, groupcode varchar(10), uid int(10))')
-        cursor.close()
-        conn.close()
-    except Exception as e:
-        logger.info('已存在订阅数据库，开始读取数据')
+    # 新建数据库
+    # 读取数据库列表
+    conn = sqlite3.connect(livedb)
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM sqlite_master WHERE type='table'")
+    datas = cursor.fetchall()
+    # 数据库列表转为序列
+    tables = []
+    for data in datas:
+        if data[1] != "sqlite_sequence":
+            tables.append(data[1])
+    # 检查是否创建订阅数据库2
+    if "subscriptionlist2" not in tables:
+        # 如未创建，则创建
+        cursor.execute('create table subscriptionlist2(id INTEGER primary key AUTOINCREMENT, '
+                       'groupcode varchar(10), uid int(10))')
+        # 判断是否存在数据库1
+        if "subscriptionlist" in tables:
+            # 如果是，则存到数据库2
+            cursor.execute("SELECT * FROM subscriptionlist")
+            datas = cursor.fetchall()
+            for data in datas:
+                cursor.execute(f'replace into subscriptionlist2 ("groupcode","uid") values("{data[1]}",{data[2]})')
+    cursor.close()
+    conn.commit()
+    conn.close()
 
     if command == "最新动态":
         logger.info("command:查询最新动态")
@@ -2171,7 +2186,7 @@ async def _(bot: Bot, messageevent: MessageEvent):
 
                 conn = sqlite3.connect(livedb)
                 cursor = conn.cursor()
-                cursor.execute("SELECT * FROM subscriptionlist WHERE uid = " + str(uid) +
+                cursor.execute("SELECT * FROM subscriptionlist2 WHERE uid = " + str(uid) +
                                " AND groupcode = '" + str(groupcode) + "'")
                 subscription = cursor.fetchone()
                 cursor.close()
@@ -2180,33 +2195,11 @@ async def _(bot: Bot, messageevent: MessageEvent):
 
                 if subscription is None:
                     logger.info("无订阅，添加订阅")
-                    # 计算写入id
-                    subid = 1
-                    num = 60
 
+                    # 写入数据
                     conn = sqlite3.connect(livedb)
                     cursor = conn.cursor()
-                    while num >= 1:
-                        num -= 1
-                        if num <= 10:
-                            subid = random.randint(100, 9999)
-
-                        cursor.execute("SELECT * FROM subscriptionlist WHERE id = " + str(subid))
-                        data = cursor.fetchall()
-
-                        if not data:
-                            num = 0
-                        else:
-                            subid += 1
-                    cursor.close()
-                    conn.commit()
-
-                    # 保存数据
-                    conn = sqlite3.connect(livedb)
-                    cursor = conn.cursor()
-                    cursor.execute(
-                        'replace into subscriptionlist(id,groupcode,uid) values(' + str(subid) + ',"' + groupcode +
-                        '","' + str(uid) + '")')
+                    cursor.execute(f"replace into subscriptionlist2('gruopcode','uid') values('{groupcode}',{uid})")
                     cursor.close()
                     conn.commit()
                     conn.close()
@@ -2274,7 +2267,7 @@ async def _(bot: Bot, messageevent: MessageEvent):
 
                 conn = sqlite3.connect(livedb)
                 cursor = conn.cursor()
-                cursor.execute("SELECT * FROM subscriptionlist WHERE uid = " + uid + " AND groupcode = '" + groupcode+"'")
+                cursor.execute("SELECT * FROM subscriptionlist2 WHERE uid = " + uid + " AND groupcode = '" + groupcode+"'")
                 subscription = cursor.fetchone()
                 cursor.close()
                 conn.commit()
@@ -2284,10 +2277,10 @@ async def _(bot: Bot, messageevent: MessageEvent):
                     code = 1
                     message = "未订阅该up主"
                 else:
-                    subid = subscription[0]
+                    subid = str(subscription[0])
                     conn = sqlite3.connect(livedb)
                     cursor = conn.cursor()
-                    cursor.execute('delete from subscriptionlist where uid = ' + uid)
+                    cursor.execute("delete from subscriptionlist2 where id = " + subid)
                     conn.commit()
                     cursor.close()
                     conn.close()
@@ -2300,7 +2293,7 @@ async def _(bot: Bot, messageevent: MessageEvent):
 
         conn = sqlite3.connect(livedb)
         cursor = conn.cursor()
-        cursor.execute("SELECT * FROM subscriptionlist WHERE groupcode = '" + groupcode + "'")
+        cursor.execute("SELECT * FROM subscriptionlist2 WHERE groupcode = '" + groupcode + "'")
         subscriptions = cursor.fetchall()
         cursor.close()
         conn.commit()
@@ -2369,15 +2362,32 @@ async def run_bili_push():
     for memberinfo in groups:
         grouplist.append(str(memberinfo['group_id']))
 
-    try:
-        # 数据库文件 如果文件不存在，会自动在当前目录中创建
-        conn = sqlite3.connect(livedb)
-        cursor = conn.cursor()
-        cursor.execute('create table subscriptionlist (id int(10) primary key, gruopcode varchar(10), uid int(10))')
-        cursor.close()
-        conn.close()
-    except Exception as e:
-        logger.info('已存在订阅数据库，开始读取数据')
+    # 新建数据库
+    # 读取数据库列表
+    conn = sqlite3.connect(livedb)
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM sqlite_master WHERE type='table'")
+    datas = cursor.fetchall()
+    # 数据库列表转为序列
+    tables = []
+    for data in datas:
+        if data[1] != "sqlite_sequence":
+            tables.append(data[1])
+    # 检查是否创建订阅数据库2
+    if "subscriptionlist2" not in tables:
+        # 如未创建，则创建
+        cursor.execute('create table subscriptionlist2(id INTEGER primary key AUTOINCREMENT, '
+                       'groupcode varchar(10), uid int(10))')
+        # 判断是否存在数据库1
+        if "subscriptionlist" in tables:
+            # 如果是，则存到数据库2
+            cursor.execute("SELECT * FROM subscriptionlist")
+            datas = cursor.fetchall()
+            for data in datas:
+                cursor.execute(f'replace into subscriptionlist2 ("groupcode","uid") values("{data[1]}",{data[2]})')
+    cursor.close()
+    conn.commit()
+    conn.close()
 
     # ############获取动态############s
     run = True  # 代码折叠
@@ -2387,7 +2397,7 @@ async def run_bili_push():
 
         conn = sqlite3.connect(livedb)
         cursor = conn.cursor()
-        cursor.execute("SELECT * FROM subscriptionlist")
+        cursor.execute("SELECT * FROM subscriptionlist2")
         subscriptions = cursor.fetchall()
         cursor.close()
         conn.commit()
@@ -2465,7 +2475,7 @@ async def run_bili_push():
     if run:
         conn = sqlite3.connect(livedb)
         cursor = conn.cursor()
-        cursor.execute("SELECT * FROM subscriptionlist")
+        cursor.execute("SELECT * FROM subscriptionlist2")
         subscriptions = cursor.fetchall()
         cursor.close()
         conn.commit()
