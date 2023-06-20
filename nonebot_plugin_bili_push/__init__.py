@@ -2199,7 +2199,7 @@ async def _(bot: Bot, messageevent: MessageEvent):
                     # 写入数据
                     conn = sqlite3.connect(livedb)
                     cursor = conn.cursor()
-                    cursor.execute(f"replace into subscriptionlist2('gruopcode','uid') values('{groupcode}',{uid})")
+                    cursor.execute(f"replace into subscriptionlist2('groupcode','uid') values('{groupcode}',{uid})")
                     cursor.close()
                     conn.commit()
                     conn.close()
