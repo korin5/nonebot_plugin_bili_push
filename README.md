@@ -17,22 +17,26 @@
 ## 安装
 （以下方法三选一）
 
-一.命令行安装：
+一.命令行安装：（貌似安装不了，可以试一下先） 
 
     nb plugin install nonebot-plugin-bili-push
- 二.使用插件文件安装：（不推荐） 
- 
-1.下载插件文件，放到plugins文件夹。
+    
+二.pip安装：
 
-2.修改pyproject.toml使其可以加载插件
-
-三.pip安装：（不推荐）
 1.执行此命令
 
     pip install nonebot-plugin-bili-push
+    
 2.修改pyproject.toml使其可以加载插件
 
     plugins = [”nonebot-plugin-bili-push“]
+    
+ 三.使用插件文件安装：（不推荐） 
+ 
+ 1.下载插件文件，放到plugins文件夹。
+
+2.修改pyproject.toml使其可以加载插件
+
  
 ## 配置
 在 nonebot2 项目的`.env`文件中选填配置
@@ -69,6 +73,7 @@
 
  - [ ] 将请求api改为异步
  - [ ] 完善动态类型（目前仅支持文字、图文、视频、转发、~~文章~~）
+ - [ ] 增加上下播推送（差点忘了还有直播推送）
  - [ ] 字体排版优化（字符位置以及）
  - [ ] 添加话题标签
  - [ ] 添加动态底部相关的内容绘制（游戏、动漫）
