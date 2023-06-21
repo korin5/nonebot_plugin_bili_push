@@ -4,8 +4,7 @@ from nonebot import require, on_command, logger
 from nonebot.plugin import PluginMetadata
 import nonebot
 import os
-import httpx
-import asyncio
+import requests
 import re
 from PIL import Image, ImageDraw, ImageFont
 from io import BytesIO
@@ -84,10 +83,8 @@ try:
     use_api = config.bilipush_emojiapi
 except Exception as e:
     try:
-        # 检查api是否正常
         get_url = apiurl + "/json/config?name=ping"
-        with httpx.Client() as client:
-            return_json = json.loads(client.get(apiurl).text)
+        return_json = json.loads(requests.get(get_url).text)
         if return_json["code"] == 0:
             use_api = True
         else:
@@ -138,27 +135,6 @@ half_text = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N
              '"', "'", "！", " "]
 
 
-async def connect(type: str, connect_url: str):
-    """
-    异步获取数据
-    :param type: 获取类型。例："json" 或 "image"
-    :connect_url: 网址。例："http://cdn.kanon.ink/json/config?name=ping"
-    """
-    # 异步获取数据，使用方法：
-    # return_json = asyncio.run(connect("json", url))
-    # image = asyncio.run(connect("image", url))
-    if type == "json":
-        async with httpx.AsyncClient() as client:
-            r = await client.get(connect_url)
-            return json.loads(r.text)
-    elif type == "image":
-        async with httpx.AsyncClient() as client:
-            return_image = await client.get(connect_url)
-            return_image = Image.open(BytesIO(return_image.content))
-            return return_image
-    return
-
-
 def get_file_path(file_name):
     """
     获取文件的路径信息，如果没下载就下载下来
@@ -172,7 +148,7 @@ def get_file_path(file_name):
     if not os.path.exists(file_path):
         # 如果文件未缓存，则缓存下来
         url = apiurl + "/file/" + file_name
-        with open(file_path, "wb") as f, asyncio.run(connect("image", url)) as res:
+        with open(file_path, "wb") as f, requests.get(url) as res:
             f.write(res.content)
     return file_path
 
@@ -186,7 +162,8 @@ def get_emoji(emoji):
         if use_api:
             url = apiurl + "/api/emoji?imageid=" + emoji
             try:
-                return_image = asyncio.run(connect("image", url))
+                return_image = requests.get(url)
+                return_image = Image.open(BytesIO(return_image.content))
                 return_image.save(cachepath)
             except Exception as e:
                 logger.info("api出错，请联系开发者")
@@ -207,6 +184,7 @@ def get_emoji(emoji):
 def is_emoji(emoji):
     if not use_api:
         return False
+    get_url = apiurl + "/json/emoji?imageid=" + emoji
     try:
         conn = sqlite3.connect(get_file_path("emoji_1.db"))
         cursor = conn.cursor()
@@ -478,7 +456,8 @@ def draw_text(text: str,
                             emoji_name = emoji_info["emoji_name"]
                             if emoji_name == biliemoji_name:
                                 emoji_url = emoji_info["url"]
-                                paste_image = asyncio.run(connect("image", emoji_url))
+                                response = requests.get(emoji_url)
+                                paste_image = Image.open(BytesIO(response.content))
                                 paste_image = paste_image.resize((int(fortsize * 1.2), int(fortsize * 1.2)))
                                 image.paste(paste_image, (int(x_num * fortsize), int(y_num * fortsize)))
                                 x_num += 1
@@ -606,7 +585,8 @@ def get_draw(data):
                     draw = ImageDraw.Draw(draw_image)
                     # 开始往图片添加内容
                     # 添加头像
-                    image_face = asyncio.run(connect("image", biliface))
+                    response = requests.get(biliface)
+                    image_face = Image.open(BytesIO(response.content))
                     image_face = image_face.resize((125, 125))
                     imageround = get_emoji("imageround")
                     imageround = imageround.resize((129, 129))
@@ -644,7 +624,8 @@ def get_draw(data):
                     draw_image.paste(paste_image, (x, y), mask=paste_image)
 
                     # 添加转发头像
-                    image_face = asyncio.run(connect("image", biliface))
+                    response = requests.get(origin_biliface)
+                    image_face = Image.open(BytesIO(response.content))
                     image_face = image_face.resize((110, 110))
                     imageround = get_emoji("imageround")
                     imageround = imageround.resize((114, 114))
@@ -669,7 +650,8 @@ def get_draw(data):
                     paste_image = circle_corner(paste_image, 15)
                     draw_image.paste(paste_image, (x, y), mask=paste_image)
                     # 添加视频图像
-                    paste_image = asyncio.run(connect("image", origin_video_image))
+                    response = requests.get(origin_video_image)
+                    paste_image = Image.open(BytesIO(response.content))
                     paste_image = paste_image.resize((346, 216))
                     paste_image = circle_corner(paste_image, 15)
                     draw_image.paste(paste_image, (x + 2, y + 2), mask=paste_image)
@@ -725,7 +707,8 @@ def get_draw(data):
                                         emoji_name = emoji_info["emoji_name"]
                                         if emoji_name == emoji_code:
                                             emoji_url = emoji_info["url"]
-                                            paste_image = asyncio.run(connect("image", emoji_url))
+                                            response = requests.get(emoji_url)
+                                            paste_image = Image.open(BytesIO(response.content))
                                             paste_image = paste_image.resize((int(fortsize * 1.2), int(fortsize * 1.2)))
                                             draw_image.paste(paste_image,
                                                              (int(x + print_x * fortsize), int(y + print_y * fortsize)))
@@ -802,7 +785,8 @@ def get_draw(data):
                                             emoji_name = emoji_info["emoji_name"]
                                             if emoji_name == emoji_code:
                                                 emoji_url = emoji_info["url"]
-                                                paste_image = asyncio.run(connect("image", emoji_url))
+                                                response = requests.get(emoji_url)
+                                                paste_image = Image.open(BytesIO(response.content))
                                                 paste_image = paste_image.resize(
                                                     (int(fortsize * 1.2), int(fortsize * 1.2)))
                                                 draw_image.paste(paste_image,
@@ -893,7 +877,8 @@ def get_draw(data):
                     imagelen = len(images)
                     if imagelen == 1:
                         # 单图，宽718
-                        addimage = asyncio.run(connect("image", images[0]))
+                        response = requests.get(images[0])
+                        addimage = Image.open(BytesIO(response.content))
                         w, h = addimage.size
                         if h / w >= 1.8:
                             x = 718
@@ -937,7 +922,8 @@ def get_draw(data):
                     draw = ImageDraw.Draw(draw_image)
                     # 开始往图片添加内容
                     # 添加头像
-                    image_face = asyncio.run(connect("image", biliface))
+                    response = requests.get(biliface)
+                    image_face = Image.open(BytesIO(response.content))
                     image_face = image_face.resize((125, 125))
                     imageround = get_emoji("imageround")
                     imageround = imageround.resize((129, 129))
@@ -975,7 +961,8 @@ def get_draw(data):
                     draw_image.paste(paste_image, (x, y), mask=paste_image)
 
                     # 添加转发头像
-                    image_face = asyncio.run(connect("image", origin_biliface))
+                    response = requests.get(origin_biliface)
+                    image_face = Image.open(BytesIO(response.content))
                     image_face = image_face.resize((110, 110))
                     imageround = get_emoji("imageround")
                     imageround = imageround.resize((114, 114))
@@ -1020,7 +1007,8 @@ def get_draw(data):
                             if print_x >= 2:
                                 print_x = 0
                                 print_y += 1
-                            paste_image = asyncio.run(connect("image", image))
+                            response = requests.get(image)
+                            paste_image = Image.open(BytesIO(response.content))
                             paste_image = image_resize2(image=paste_image, size=(356, 356),
                                                         overturn=True)
                             paste_image = circle_corner(paste_image, 15)
@@ -1035,7 +1023,8 @@ def get_draw(data):
                             if num >= 3:
                                 print_x = x
                                 print_y += 253 + 5
-                            paste_image = asyncio.run(connect("image", image))
+                            response = requests.get(image)
+                            paste_image = Image.open(BytesIO(response.content))
                             paste_image = image_resize2(image=paste_image, size=(253, 253),
                                                         overturn=True)
                             paste_image = circle_corner(paste_image, 15)
@@ -1103,7 +1092,8 @@ def get_draw(data):
                     draw = ImageDraw.Draw(draw_image)
                     # 开始往图片添加内容
                     # 添加头像
-                    image_face = asyncio.run(connect("image", biliface))
+                    response = requests.get(biliface)
+                    image_face = Image.open(BytesIO(response.content))
                     image_face = image_face.resize((125, 125))
                     imageround = get_emoji("imageround")
                     imageround = imageround.resize((129, 129))
@@ -1142,7 +1132,8 @@ def get_draw(data):
                     draw_image.paste(paste_image, (x, y), mask=paste_image)
 
                     # 添加转发头像
-                    image_face = asyncio.run(connect("image", origin_biliface))
+                    response = requests.get(origin_biliface)
+                    image_face = Image.open(BytesIO(response.content))
                     image_face = image_face.resize((110, 110))
                     imageround = get_emoji("imageround")
                     imageround = imageround.resize((114, 114))
@@ -1225,7 +1216,8 @@ def get_draw(data):
                     draw = ImageDraw.Draw(draw_image)
                     # 开始往图片添加内容
                     # 添加头像
-                    image_face = asyncio.run(connect("image", biliface))
+                    response = requests.get(biliface)
+                    image_face = Image.open(BytesIO(response.content))
                     image_face = image_face.resize((125, 125))
                     imageround = get_emoji("imageround")
                     imageround = imageround.resize((129, 129))
@@ -1263,7 +1255,8 @@ def get_draw(data):
                     draw_image.paste(paste_image, (x, y), mask=paste_image)
 
                     # 添加转发头像
-                    image_face = asyncio.run(connect("image", origin_biliface))
+                    response = requests.get(origin_biliface)
+                    image_face = Image.open(BytesIO(response.content))
                     image_face = image_face.resize((110, 110))
                     imageround = get_emoji("imageround")
                     imageround = imageround.resize((114, 114))
@@ -1288,7 +1281,8 @@ def get_draw(data):
                     paste_image = circle_corner(paste_image, 15)
                     draw_image.paste(paste_image, (x, y), mask=paste_image)
                     # 添加视频图像
-                    paste_image = asyncio.run(connect("image", origin_image))
+                    response = requests.get(origin_image)
+                    paste_image = Image.open(BytesIO(response.content))
                     paste_image = paste_image.resize((726, 216))
                     paste_image = circle_corner(paste_image, 15)
                     draw_image.paste(paste_image, (x + 2, y + 2), mask=paste_image)
@@ -1367,7 +1361,8 @@ def get_draw(data):
                     draw = ImageDraw.Draw(draw_image)
                     # 开始往图片添加内容
                     # 添加头像
-                    image_face = asyncio.run(connect("image", biliface))
+                    response = requests.get(biliface)
+                    image_face = Image.open(BytesIO(response.content))
                     image_face = image_face.resize((125, 125))
                     imageround = get_emoji("imageround")
                     imageround = imageround.resize((129, 129))
@@ -1473,7 +1468,8 @@ def get_draw(data):
                     draw = ImageDraw.Draw(draw_image)
                     # 开始往图片添加内容
                     # 添加头像
-                    image_face = asyncio.run(connect("image", biliface))
+                    response = requests.get(biliface)
+                    image_face = Image.open(BytesIO(response.content))
                     image_face = image_face.resize((125, 125))
                     imageround = get_emoji("imageround")
                     imageround = imageround.resize((129, 129))
@@ -1512,7 +1508,8 @@ def get_draw(data):
                     draw_image.paste(paste_image, (x, y), mask=paste_image)
 
                     # 添加直播封面
-                    paste_image = asyncio.run(connect("image", origin_image))
+                    response = requests.get(origin_image)
+                    paste_image = Image.open(BytesIO(response.content))
                     paste_image = paste_image.resize((718, 403))
                     paste_image = circle_corner(paste_image, 15)
                     draw_image.paste(paste_image, (x, y), mask=paste_image)
@@ -1570,7 +1567,8 @@ def get_draw(data):
                 # 添加图片长度
                 imagelen = len(images)
                 if imagelen == 1:
-                    addimage = asyncio.run(connect("image", images[0]))
+                    response = requests.get(images[0])
+                    addimage = Image.open(BytesIO(response.content))
                     w, h = addimage.size
                     if h / w >= 1.8:
                         x = 770
@@ -1612,7 +1610,8 @@ def get_draw(data):
                 draw = ImageDraw.Draw(draw_image)
                 # 开始往图片添加内容
                 # 添加头像
-                image_face = asyncio.run(connect("image", biliface))
+                response = requests.get(biliface)
+                image_face = Image.open(BytesIO(response.content))
                 image_face = image_face.resize((125, 125))
                 imageround = get_emoji("imageround")
                 imageround = imageround.resize((129, 129))
@@ -1655,7 +1654,8 @@ def get_draw(data):
                             print_x = 0
                             print_y += 1
 
-                        paste_image = asyncio.run(connect("image", image))
+                        response = requests.get(image)
+                        paste_image = Image.open(BytesIO(response.content))
                         paste_image = image_resize2(image=paste_image, size=(382, 382), overturn=True)
                         paste_image = circle_corner(paste_image, 15)
                         draw_image.paste(paste_image, (int(x + print_x * (382 + 5)), int(y + print_y * (382 + 5))),
@@ -1668,7 +1668,9 @@ def get_draw(data):
                         if print_x >= 3:
                             print_x = 0
                             print_y += 1
-                        paste_image = asyncio.run(connect("image", image))
+
+                        response = requests.get(image)
+                        paste_image = Image.open(BytesIO(response.content))
                         paste_image = image_resize2(image=paste_image, size=(253, 253), overturn=True)
                         paste_image = circle_corner(paste_image, 15)
                         draw_image.paste(paste_image, (int(x + print_x * (253 + 5)), int(y + print_y * (253 + 5))),
@@ -1719,7 +1721,8 @@ def get_draw(data):
                 draw = ImageDraw.Draw(draw_image)
                 # 开始往图片添加内容
                 # 添加头像
-                image_face = asyncio.run(connect("image", biliface))
+                response = requests.get(biliface)
+                image_face = Image.open(BytesIO(response.content))
                 image_face = image_face.resize((125, 125))
                 imageround = get_emoji("imageround")
                 imageround = imageround.resize((129, 129))
@@ -1788,7 +1791,8 @@ def get_draw(data):
 
                 # 开始往图片添加内容
                 # 添加头像
-                image_face = asyncio.run(connect("image", biliface))
+                response = requests.get(biliface)
+                image_face = Image.open(BytesIO(response.content))
                 image_face = image_face.resize((125, 125))
                 imageround = get_emoji("imageround")
                 imageround = imageround.resize((129, 129))
@@ -1844,7 +1848,8 @@ def get_draw(data):
                                     emoji_name = emoji_info["emoji_name"]
                                     if emoji_name == emoji_code:
                                         emoji_url = emoji_info["url"]
-                                        paste_image = asyncio.run(connect("image", emoji_url))
+                                        response = requests.get(emoji_url)
+                                        paste_image = Image.open(BytesIO(response.content))
                                         paste_image = paste_image.resize((int(fortsize * 1.2), int(fortsize * 1.2)))
                                         draw_image.paste(paste_image,
                                                          (int(x + print_x * fortsize), int(y + print_y * fortsize)))
@@ -1878,7 +1883,8 @@ def get_draw(data):
                 # 添加视频图像
                 x += 2
                 y += 2
-                paste_image = asyncio.run(connect("image", card_image))
+                response = requests.get(card_image)
+                paste_image = Image.open(BytesIO(response.content))
                 paste_image = image_resize2(paste_image, (313, 196))
                 paste_image = circle_corner(paste_image, 15)
                 draw_image.paste(paste_image, (x, y), mask=paste_image)
@@ -1927,7 +1933,8 @@ def get_draw(data):
                                     emoji_name = emoji_info["emoji_name"]
                                     if emoji_name == emoji_code:
                                         emoji_url = emoji_info["url"]
-                                        paste_image = asyncio.run(connect("image", emoji_url))
+                                        response = requests.get(emoji_url)
+                                        paste_image = Image.open(BytesIO(response.content))
                                         paste_image = paste_image.resize((int(fortsize * 1.2), int(fortsize * 1.2)))
                                         draw_image.paste(paste_image,
                                                          (int(x + print_x * fortsize), int(y + print_y * fortsize)))
@@ -1998,7 +2005,8 @@ def get_draw(data):
                                     emoji_name = emoji_info["emoji_name"]
                                     if emoji_name == emoji_code:
                                         emoji_url = emoji_info["url"]
-                                        paste_image = asyncio.run(connect("image", emoji_url))
+                                        response = requests.get(emoji_url)
+                                        paste_image = Image.open(BytesIO(response.content))
                                         paste_image = paste_image.resize((int(fortsize * 1.2), int(fortsize * 1.2)))
                                         draw_image.paste(paste_image,
                                                          (int(x + print_x * fortsize), int(y + print_y * fortsize)))
@@ -2143,7 +2151,10 @@ async def _(bot: Bot, messageevent: MessageEvent):
             uid = command2
             logger.info(f"开始获取信息-{uid}")
             url = 'https://api.vc.bilibili.com/dynamic_svr/v1/dynamic_svr/space_history?host_uid=' + uid
-            returnjson = asyncio.run(connect("json", url))
+            s = json.dumps({'key1': 'value1', 'key2': 'value2'})
+            h = {'Content-Type': 'application/x-www-form-urlencoded'}
+            returnjson = requests.post(url, data=s, headers=h).text
+            returnjson = json.loads(returnjson)
             returncode = returnjson["code"]
             logger.info('returncode:' + str(returncode))
             if returncode == 0:
@@ -2201,7 +2212,10 @@ async def _(bot: Bot, messageevent: MessageEvent):
                     # 将历史动态存到数据库中
                     logger.info('关注成功，将历史动态存到数据库中')
                     url = 'https://api.vc.bilibili.com/dynamic_svr/v1/dynamic_svr/space_history?host_uid=' + uid
-                    returnjson = asyncio.run(connect("json", url))
+                    s = json.dumps({'key1': 'value1', 'key2': 'value2'})
+                    h = {'Content-Type': 'application/x-www-form-urlencoded'}
+                    returnjson = requests.post(url, data=s, headers=h).text
+                    returnjson = json.loads(returnjson)
                     returncode = returnjson["code"]
                     if returncode == 0:
                         logger.info('获取动态图片并发送')
@@ -2414,7 +2428,10 @@ async def run_bili_push():
             for uid in subscriptionlist:
                 logger.info(f"开始获取信息-{uid}")
                 url = 'https://api.vc.bilibili.com/dynamic_svr/v1/dynamic_svr/space_history?host_uid=' + uid
-                returnjson = asyncio.run(connect("json", url))
+                s = json.dumps({'key1': 'value1', 'key2': 'value2'})
+                h = {'Content-Type': 'application/x-www-form-urlencoded'}
+                returnjson = requests.post(url, data=s, headers=h).text
+                returnjson = json.loads(returnjson)
                 returncode = returnjson["code"]
                 return_datas = returnjson["data"]
                 return_datas = return_datas["cards"]
