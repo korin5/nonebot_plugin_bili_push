@@ -184,7 +184,6 @@ def get_emoji(emoji):
 def is_emoji(emoji):
     if not use_api:
         return False
-    get_url = apiurl + "/json/emoji?imageid=" + emoji
     try:
         conn = sqlite3.connect(get_file_path("emoji_1.db"))
         cursor = conn.cursor()
@@ -1280,13 +1279,13 @@ def get_draw(data):
                     paste_image = Image.new("RGB", (730, 350), "#FFFFFF")
                     paste_image = circle_corner(paste_image, 15)
                     draw_image.paste(paste_image, (x, y), mask=paste_image)
-                    # 添加视频图像
+                    # 添加文章图像
                     response = requests.get(origin_image)
                     paste_image = Image.open(BytesIO(response.content))
                     paste_image = paste_image.resize((726, 216))
                     paste_image = circle_corner(paste_image, 15)
                     draw_image.paste(paste_image, (x + 2, y + 2), mask=paste_image)
-                    # 添加视频标题
+                    # 添加文章标题
                     y += 220
 
                     if len(origin_title) > 25:
@@ -1297,12 +1296,12 @@ def get_draw(data):
                                             biliemoji_infos=emoji_infos)
                     draw_image.paste(paste_image, (x, y), mask=paste_image)
 
-                    # 添加视频简介
-                    y += 35
-                    if len(origin_message) > 80:
-                        origin_message = origin_message[0:79] + "……"
+                    # 添加文章简介
+                    y += 45
+                    if len(origin_message) > 70:
+                        origin_message = origin_message[0:69] + "……"
                     paste_image = draw_text(origin_message,
-                                            size=30,
+                                            size=27,
                                             textlen=23,
                                             biliemoji_infos=emoji_infos)
                     draw_image.paste(paste_image, (x, y), mask=paste_image)
@@ -2034,6 +2033,7 @@ def get_draw(data):
                 draw_image.save(returnpath)
                 logger.info("bili-push_draw_绘图成功")
                 code = 2
+
         # 投稿文章
         elif bilitype == 64:
             print()
