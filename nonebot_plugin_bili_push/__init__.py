@@ -474,7 +474,7 @@ def draw_text(text: str,
     return image
 
 
-def get_draw(data):
+def get_draw(data, bili_live: bool = False):
     import time
     date = str(time.strftime("%Y-%m-%d", time.localtime()))
     date_year = str(time.strftime("%Y", time.localtime()))
@@ -715,7 +715,7 @@ def get_draw(data):
 
                             if emoji_code == "":
                                 # 检测是否半格字符
-                                if not is_emoji(font):
+                                if not is_emoji(text):
 
                                     # 打印文字
                                     draw.text(xy=(int(x + print_x * fortsize), int(y + print_y * fortsize)), text=text,
@@ -795,7 +795,7 @@ def get_draw(data):
 
                                 if emoji_code == "":
                                     # 检测是否半格字符
-                                    if not is_emoji(font):
+                                    if not is_emoji(text):
                                         # 打印文字
                                         draw.text(xy=(int(x + print_x * fortsize), int(y + print_y * fortsize)),
                                                   text=text,
@@ -1856,7 +1856,7 @@ def get_draw(data):
 
                         if emoji_code == "":
                             # 检测是否半格字符
-                            if not is_emoji(font):
+                            if not is_emoji(text):
                                 # 打印文字
                                 draw.text(xy=(int(x + print_x * fortsize), int(y + print_y * fortsize)), text=text,
                                           fill=(0, 0, 0), font=font)
@@ -1941,7 +1941,7 @@ def get_draw(data):
 
                         if emoji_code == "":
                             # 检测是否半格字符
-                            if not is_emoji(font):
+                            if not is_emoji(text):
                                 # 打印文字
                                 draw.text(xy=(int(x + print_x * fortsize), int(y + print_y * fortsize)), text=text,
                                           fill=(0, 0, 0), font=cache_font)
@@ -2013,7 +2013,7 @@ def get_draw(data):
 
                         if emoji_code == "":
                             # 检测是否半格字符
-                            if not is_emoji(font):
+                            if not is_emoji(text):
                                 # 打印文字
                                 draw.text(xy=(int(x + print_x * fortsize), int(y + print_y * fortsize)), text=text,
                                           fill=(100, 100, 100), font=cache_font)
@@ -2393,7 +2393,7 @@ async def run_bili_push():
     conn.commit()
     conn.close()
 
-    # ############获取动态############s
+    # ############获取动态############
     run = True  # 代码折叠
     if run:
         logger.info('---------获取更新的动态----------')
@@ -2480,7 +2480,42 @@ async def run_bili_push():
                 conn.commit()
                 conn.close()
 
-    # ############推送动态############s
+    # ############获取直播状态############(未完成代码部分)
+    run = False  # 代码折叠
+    if run:
+
+        logger.info('---------获取更新的动态----------')
+        logger.info("获取订阅列表")
+
+        conn = sqlite3.connect(livedb)
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM subscriptionlist2")
+        subscriptions = cursor.fetchall()
+        cursor.close()
+        conn.commit()
+        conn.close()
+
+        if not subscriptions:
+            logger.info("无订阅")
+        else:
+            subscriptionlist = []
+            for subscription in subscriptions:
+                uid = str(subscription[2])
+                groupcode = subscription[1]
+                if "p" in groupcode:
+                    groupcode = groupcode.removeprefix("gp")
+                    if groupcode in friendlist:
+                        if uid not in subscriptionlist:
+                            subscriptionlist.append(uid)
+                else:
+                    groupcode = groupcode.removeprefix("g")
+                    if groupcode in grouplist:
+                        if uid not in subscriptionlist:
+                            subscriptionlist.append(uid)
+
+            # for uid in subscriptionlist:
+
+    # ############推送动态############
     run = True  # 代码折叠
     if run:
         conn = sqlite3.connect(livedb)
