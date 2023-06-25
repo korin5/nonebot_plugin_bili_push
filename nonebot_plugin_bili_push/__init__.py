@@ -2389,6 +2389,10 @@ async def run_bili_push():
             datas = cursor.fetchall()
             for data in datas:
                 cursor.execute(f'replace into subscriptionlist2 ("groupcode","uid") values("{data[1]}",{data[2]})')
+    if "livelist" not in tables:
+        # 如未创建，则创建
+        cursor.execute('create table livelist(uid varchar(10) primary key, '
+                       'groupcode varchar(10), uid int(10))')
     cursor.close()
     conn.commit()
     conn.close()
@@ -2480,9 +2484,12 @@ async def run_bili_push():
                 conn.commit()
                 conn.close()
 
-    # ############获取直播状态############(未完成代码部分)
+    # ############获取直播状态############(未完成代码部分，勿启用)
     run = False  # 代码折叠
     if run:
+        fortsize = 30
+        fontfile = get_file_path("腾祥嘉丽中圆.ttf")
+        font = ImageFont.truetype(font=fontfile, size=fortsize)
 
         logger.info('---------获取更新的动态----------')
         logger.info("获取订阅列表")
@@ -2501,19 +2508,103 @@ async def run_bili_push():
             subscriptionlist = []
             for subscription in subscriptions:
                 uid = str(subscription[2])
-                groupcode = subscription[1]
-                if "p" in groupcode:
-                    groupcode = groupcode.removeprefix("gp")
-                    if groupcode in friendlist:
-                        if uid not in subscriptionlist:
-                            subscriptionlist.append(uid)
+                subscriptionlist.append(uid)
+            if subscriptionlist:
+                url = "https://api.live.bilibili.com/room/v1/Room/get_status_info_by_uids"
+                d = {"uids": subscriptionlist}
+                json_data = json.loads(requests.post(url, json=d).text)
+                if json_data["code"] != 0:
+                    logger.error("直播api出错请将此消息反馈给开发者，sub[0]=" + str(subscriptionlist[0]) +
+                                 ",msg=" + json_data["message"])
                 else:
-                    groupcode = groupcode.removeprefix("g")
-                    if groupcode in grouplist:
-                        if uid not in subscriptionlist:
-                            subscriptionlist.append(uid)
+                    livedatas = json_data["data"]
+                    livedata_list = list(livedatas)
 
-            # for uid in subscriptionlist:
+                    conn = sqlite3.connect(livedb)
+                    cursor = conn.cursor()
+                    for uid in livedata_list:
+                        logger.info("bili_live_开始获取消息:" + str(uid))
+                        livedata = livedatas[uid]
+                        live_status = livedata["live_status"]
+
+                        cursor.execute("SELECT * FROM livelist WHERE uid='" + str(uid) + "'")
+                        # data_db = cursor.fetchone()
+
+                        data_db = [2, 2]
+                        if live_status != data_db[1]:
+                            uname = livedata["uname"]
+                            face = livedata["face"]
+                            cover_from_user = livedata["cover_from_user"]
+                            live_title = livedata["title"]
+                            room_id = livedata["room_id"]
+
+                            live_time = livedata["live_time"]
+                            live_time = time.localtime(live_time)
+                            live_time = time.strftime("%Y年%m月%d日 %H:%M:%S", live_time)
+
+                            online = livedata["online"]
+                            if run:
+                                if live_status == 1:
+                                    logger.info("live开始绘图")
+                                    draw_image = new_background(900, 800)
+                                    draw = ImageDraw.Draw(draw_image)
+
+                                    # 开始往图片添加内容
+                                    # 添加头像
+                                    response = requests.get(face)
+                                    image_face = Image.open(BytesIO(response.content))
+                                    image_face = image_face.resize((125, 125))
+                                    # imageround = get_emoji("imageround")
+                                    # imageround = imageround.resize((129, 129))
+                                    # draw_image.paste(imageround, (73, 73), mask=imageround)
+                                    # imageround = imageround.resize((125, 125))
+                                    # draw_image.paste(image_face, (75, 75), mask=imageround)
+                                    draw_image.paste(image_face, (75, 75))
+
+                                    # 添加名字
+                                    cache_font = ImageFont.truetype(font=fontfile, size=35)
+                                    draw.text(xy=(230, 85), text=uname, fill=(0, 0, 0), font=cache_font)
+
+                                    # 添加日期
+                                    draw.text(xy=(230, 145), text=live_time, fill=(100, 100, 100), font=font)
+
+                                    # 添加状态
+                                    draw.text(xy=(75, 230), text="正在直播", fill=(0, 0, 0), font=font)
+
+                                    # 添加标题
+                                    draw.text(xy=(75, 270), text=live_title, fill=(0, 0, 0), font=font)
+
+                                    # 添加封面
+                                    response = requests.get(cover_from_user)
+                                    paste_image = Image.open(BytesIO(response.content))
+                                    paste_image = paste_image.resize((772, 434))
+                                    paste_image = circle_corner(paste_image, 15)
+                                    draw_image.paste(paste_image, (75, 330))
+
+                                    returnpath = './cache/bili动态/'
+                                    if not os.path.exists(returnpath):
+                                        os.makedirs(returnpath)
+                                    random_num = str(random.randint(100000, 999999))
+                                    returnpath = returnpath + random_num + '.png'
+                                    draw_image.save(returnpath)
+                                    code = 2
+
+                                    # 写入数据
+                                    cursor.execute(
+                                        f'replace into livelist (uid, state, draw, username, message_title) values'
+                                        f'("{uid}","{live_status}","{returnpath}","{uname}","{live_title}")')
+
+                                elif live_status == 0:
+                                    logger.info("up主已下播")
+                                    code = 1
+                                    message = uname + "已下播"
+                                    cursor.execute(
+                                        f'replace into livelist (uid, state, draw, username, message_title) values'
+                                        f'("{uid}","{live_status}","none","{uname}","{live_title}")')
+
+                    cursor.close()
+                    conn.commit()
+                    conn.close()
 
     # ############推送动态############
     run = True  # 代码折叠
