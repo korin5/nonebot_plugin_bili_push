@@ -61,6 +61,12 @@ config = nonebot.get_driver().config
 # 读取自定义的命令前缀
 # COMMAND_START=["/", ""]
 #
+# 配置9：
+# 单次最大发送限制
+# 限制单次发送消息的数量，减小风控概率
+# 默认为5条，为0时不限制
+# bilipush_maximum_send=5
+#
 
 # 配置1：
 try:
@@ -115,6 +121,13 @@ try:
     command_starts = config.COMMAND_START
 except Exception as e:
     command_starts = ["/"]
+# 配置9：
+try:
+    maximum_send = config.bilipush_maximum_send
+    if maximum_send == 0:
+        maximum_send = 99
+except Exception as e:
+    maximum_send = 5
 
 # 插件元信息，让nonebot读取到这个插件是干嘛的
 __plugin_meta__ = PluginMetadata(
@@ -2349,8 +2362,9 @@ minute = "*/" + waittime
 
 @scheduler.scheduled_job("cron", minute=minute, id="job_0")
 async def run_bili_push():
-    logger.info("run bili_push")
-    # ############获取动态更新，并绘制############
+    logger.info("bili_push_0.1.21")
+    # ############开始自动运行插件############
+    now_maximum_send = maximum_send
     import time
     date = str(time.strftime("%Y-%m-%d", time.localtime()))
     date_year = str(time.strftime("%Y", time.localtime()))
@@ -2404,8 +2418,13 @@ async def run_bili_push():
                 cursor.execute(f'replace into subscriptionlist2 ("groupcode","uid") values("{data[1]}",{data[2]})')
     if "livelist" not in tables:
         # 如未创建，则创建
-        cursor.execute('create table livelist(uid varchar(10) primary key, '
-                       'draw varchar(10), username varchar(10), message_title varchar(10))')
+        cursor.execute('create table livelist2(uid varchar(10) primary key, '
+                       'state varchar(10), draw varchar(10), username varchar(10), message_title varchar(10))')
+    if "wait_push2" not in tables:
+        cursor.execute(
+            "create table 'wait_push2' (dynamicid int(10) primary key, uid varchar(10), "
+            "draw_path varchar(20), message_title varchar(20), message_url varchar(20), "
+            "message_body varchar(20), message_images varchar(20))")
     cursor.close()
     conn.commit()
     conn.close()
@@ -2413,8 +2432,7 @@ async def run_bili_push():
     # ############获取动态############
     run = True  # 代码折叠
     if run:
-        logger.info('---------获取更新的动态----------')
-        logger.info("获取订阅列表")
+        logger.info('---获取更新的动态')
 
         conn = sqlite3.connect(livedb)
         cursor = conn.cursor()
@@ -2454,18 +2472,6 @@ async def run_bili_push():
                 return_datas = return_datas["cards"]
                 logger.info('获取up主动态列表成功')
                 # 比较已保存内容
-                try:
-                    # 缓存文件，存储待发送动态 如果文件不存在，会自动在当前目录中创建
-                    conn = sqlite3.connect(livedb)
-                    cursor = conn.cursor()
-                    cursor.execute(
-                        "create table 'wait_push2' (dynamicid int(10) primary key, uid varchar(10), "
-                        "draw_path varchar(20), message_title varchar(20), message_url varchar(20), "
-                        "message_body varchar(20), message_images varchar(20))")
-                    cursor.close()
-                    conn.close()
-                except Exception as e:
-                    logger.info("已存在推送数据库，开始读取数据")
 
                 conn = sqlite3.connect(livedb)
                 cursor = conn.cursor()
@@ -2497,14 +2503,14 @@ async def run_bili_push():
                 conn.commit()
                 conn.close()
 
-    # ############获取直播状态############(未测试是否正常，勿启用)
-    run = False  # 代码折叠
+    # ############获取直播状态############
+    run = True  # 代码折叠
     if run:
+        logger.info('---------获取更新的直播----------')
         fortsize = 30
         fontfile = get_file_path("腾祥嘉丽中圆.ttf")
         font = ImageFont.truetype(font=fontfile, size=fortsize)
 
-        logger.info('---------获取更新的动态----------')
         logger.info("获取订阅列表")
 
         conn = sqlite3.connect(livedb)
@@ -2540,11 +2546,10 @@ async def run_bili_push():
                         livedata = livedatas[uid]
                         live_status = livedata["live_status"]
 
-                        cursor.execute("SELECT * FROM livelist WHERE uid='" + str(uid) + "'")
-                        # data_db = cursor.fetchone()
+                        cursor.execute("SELECT * FROM livelist2 WHERE uid='" + str(uid) + "'")
+                        data_db = cursor.fetchone()
 
-                        data_db = [2, 2]
-                        if live_status != data_db[1]:
+                        if data_db is None or live_status != data_db[1]:
                             uname = livedata["uname"]
                             face = livedata["face"]
                             cover_from_user = livedata["cover_from_user"]
@@ -2556,72 +2561,69 @@ async def run_bili_push():
                             live_time = time.strftime("%Y年%m月%d日 %H:%M:%S", live_time)
 
                             online = livedata["online"]
-                            if run:
-                                if live_status == 1:
-                                    logger.info("live开始绘图")
-                                    draw_image = new_background(900, 800)
-                                    draw = ImageDraw.Draw(draw_image)
 
-                                    # 开始往图片添加内容
-                                    # 添加头像
-                                    response = requests.get(face)
-                                    image_face = Image.open(BytesIO(response.content))
-                                    image_face = image_face.resize((125, 125))
-                                    # imageround = get_emoji("imageround")
-                                    # imageround = imageround.resize((129, 129))
-                                    # draw_image.paste(imageround, (73, 73), mask=imageround)
-                                    # imageround = imageround.resize((125, 125))
-                                    # draw_image.paste(image_face, (75, 75), mask=imageround)
-                                    draw_image.paste(image_face, (75, 75))
+                            if live_status != 0:
+                                logger.info("live开始绘图")
+                                draw_image = new_background(900, 800)
+                                draw = ImageDraw.Draw(draw_image)
 
-                                    # 添加名字
-                                    cache_font = ImageFont.truetype(font=fontfile, size=35)
-                                    draw.text(xy=(230, 85), text=uname, fill=(0, 0, 0), font=cache_font)
+                                # 开始往图片添加内容
+                                # 添加头像
+                                response = requests.get(face)
+                                image_face = Image.open(BytesIO(response.content))
+                                image_face = image_face.resize((125, 125))
+                                imageround = get_emoji("imageround")
+                                imageround = imageround.resize((129, 129))
+                                draw_image.paste(imageround, (73, 73), mask=imageround)
+                                imageround = imageround.resize((125, 125))
+                                draw_image.paste(image_face, (75, 75), mask=imageround)
 
-                                    # 添加日期
-                                    draw.text(xy=(230, 145), text=live_time, fill=(100, 100, 100), font=font)
+                                # 添加名字
+                                cache_font = ImageFont.truetype(font=fontfile, size=35)
+                                draw.text(xy=(230, 85), text=uname, fill=(0, 0, 0), font=cache_font)
 
-                                    # 添加状态
-                                    draw.text(xy=(75, 230), text="正在直播", fill=(0, 0, 0), font=font)
+                                # 添加日期
+                                draw.text(xy=(230, 145), text=live_time, fill=(100, 100, 100), font=font)
 
-                                    # 添加标题
-                                    draw.text(xy=(75, 270), text=live_title, fill=(0, 0, 0), font=font)
+                                # 添加状态
+                                draw.text(xy=(75, 230), text="正在直播", fill=(0, 0, 0), font=font)
 
-                                    # 添加封面
-                                    response = requests.get(cover_from_user)
-                                    paste_image = Image.open(BytesIO(response.content))
-                                    paste_image = paste_image.resize((772, 434))
-                                    paste_image = circle_corner(paste_image, 15)
-                                    draw_image.paste(paste_image, (75, 330))
+                                # 添加标题
+                                draw.text(xy=(75, 270), text=live_title, fill=(0, 0, 0), font=font)
 
-                                    returnpath = './cache/bili动态/'
-                                    if not os.path.exists(returnpath):
-                                        os.makedirs(returnpath)
-                                    random_num = str(random.randint(100000, 999999))
-                                    returnpath = returnpath + random_num + '.png'
-                                    draw_image.save(returnpath)
-                                    code = 2
+                                # 添加封面
+                                response = requests.get(cover_from_user)
+                                paste_image = Image.open(BytesIO(response.content))
+                                paste_image = paste_image.resize((772, 434))
+                                paste_image = circle_corner(paste_image, 15)
+                                draw_image.paste(paste_image, (75, 330))
 
-                                    # 写入数据
-                                    cursor.execute(
-                                        f'replace into livelist (uid, state, draw, username, message_title) values'
-                                        f'("{uid}","{live_status}","{returnpath}","{uname}","{live_title}")')
+                                returnpath = os.path.abspath('.') + '/cache/bili动态/'
+                                if not os.path.exists(returnpath):
+                                    os.makedirs(returnpath)
+                                random_num = str(random.randint(100000, 999999))
+                                returnpath = returnpath + random_num + '.png'
+                                draw_image.save(returnpath)
 
-                                elif live_status == 0:
-                                    logger.info("up主已下播")
-                                    code = 1
-                                    message = uname + "已下播"
-                                    cursor.execute(
-                                        f'replace into livelist (uid, state, draw, username, message_title) values'
-                                        f'("{uid}","{live_status}","none","{uname}","{live_title}")')
+                                # 写入数据
+                                cursor.execute(
+                                    f'replace into livelist2 (uid, state, draw, username, message_title) values'
+                                    f'("{uid}","{live_status}","{returnpath}","{uname}","{live_title}")')
+
+                            elif live_status == 0:
+                                message = uname + "已下播"
+                                cursor.execute(
+                                    f'replace into livelist2 (uid, state, draw, username, message_title) values'
+                                    f'("{uid}","{live_status}","none","{uname}","{live_title}")')
 
                     cursor.close()
                     conn.commit()
                     conn.close()
 
-    # ############推送直播状态############(未测试是否正常，勿启用)
-    run = False  # 代码折叠
+    # ############推送直播状态############
+    run = True  # 代码折叠
     if run:
+        logger.info('---------推送直播----------')
         conn = sqlite3.connect(livedb)
         cursor = conn.cursor()
         cursor.execute("SELECT * FROM subscriptionlist2")
@@ -2717,7 +2719,7 @@ async def run_bili_push():
                         cursor.close()
                         conn.close()
                     except Exception as e:
-                        logger.info('已存在订阅数据库，开始读取数据')
+                        logger.info('已存在群订阅数据库，开始读取数据')
 
                     # 获取已推送的状态
                     conn = sqlite3.connect(livedb)
@@ -2730,7 +2732,7 @@ async def run_bili_push():
                     # 获取最新动态
                     sqlite3.connect(livedb)
                     cursor = conn.cursor()
-                    cursor.execute("SELECT * FROM 'livelist' WHERE uid = '" + uid + "'")
+                    cursor.execute("SELECT * FROM 'livelist2' WHERE uid = '" + uid + "'")
                     datas = cursor.fetchone()
                     cursor.close()
                     conn.commit()
@@ -2738,15 +2740,17 @@ async def run_bili_push():
                     if datas is not None:
                         state = datas[1]
                         if pushed_datas is None:
-                            pushed_state = "2"
+                            new_push = True
+                            pushed_state = "none"
                         else:
+                            new_push = False
                             pushed_state = pushed_datas[1]
                         if state != pushed_state:
 
                             # 推送直播消息，并保存为已推送
                             conn = sqlite3.connect(livedb)
                             cursor = conn.cursor()
-                            cursor.execute("SELECT * FROM 'livelist' WHERE uid = " + uid)
+                            cursor.execute("SELECT * FROM 'livelist2' WHERE uid = " + uid)
                             data = cursor.fetchone()
                             cursor.close()
                             conn.commit()
@@ -2761,62 +2765,67 @@ async def run_bili_push():
                                 if state == "1":
                                     msg1 = MessageSegment.image(r"file:///" + returnpath)
                                     msg2 = MessageSegment.text(biliname + "已开播\n" + message_title)
-                                    mag = msg1 + msg2
+                                    msg = msg1 + msg2
                                 else:
-                                    msg1 = MessageSegment.text(biliname + "已下播")
+                                    msg = MessageSegment.text(biliname + "已下播")
 
                                 stime = random.randint(1, 200) / 10 + sleeptime
 
-                                if "p" in groupcode:
-                                    send_qq = groupcode.removeprefix("gp")
-                                    if send_qq in friendlist:
-                                        # bot已添加好友，发送消息
-                                        try:
-                                            await nonebot.get_bot().send_private_msg(user_id=send_qq, message=msg)
-                                            conn = sqlite3.connect(livedb)
-                                            cursor = conn.cursor()
-                                            cursor.execute(
-                                                "replace into 'gp" + send_qq + "'(dynamicid,uid) "
-                                                                               "values('live" + uid + "','" + state + "')")
-                                            cursor.close()
-                                            conn.commit()
-                                            conn.close()
-                                            logger.info("发送私聊成功")
+                                if now_maximum_send > 0:
+                                    if "p" in groupcode:
+                                        send_qq = groupcode.removeprefix("gp")
+                                        if send_qq in friendlist:
+                                            # bot已添加好友，发送消息
+                                            try:
+                                                if state != 0 and new_push is not True:  # 第一次推送且是下播时不推送
+                                                    now_maximum_send -= 1
+                                                    await nonebot.get_bot().send_private_msg(user_id=send_qq, message=msg)
+                                                conn = sqlite3.connect(livedb)
+                                                cursor = conn.cursor()
+                                                cursor.execute(
+                                                    "replace into 'gp" + send_qq + "'(dynamicid,uid) "
+                                                                                   "values('live" + uid + "','" + state + "')")
+                                                cursor.close()
+                                                conn.commit()
+                                                conn.close()
+                                                logger.info("发送私聊成功")
 
-                                        except Exception as e:
-                                            logger.error('私聊内容发送失败：send_qq：' + str(send_qq) + ",message:" +
-                                                  message + ",retrnpath:" + returnpath)
-                                        time.sleep(stime)
+                                            except Exception as e:
+                                                logger.error('私聊内容发送失败：send_qq：' + str(send_qq) + ",message:" +
+                                                      message + ",retrnpath:" + returnpath)
+                                            time.sleep(stime)
+                                        else:
+                                            logger.info("bot未入群")
+
                                     else:
-                                        logger.info("bot未入群")
-
-                                else:
-                                    send_groupcode = groupcode.removeprefix("g")
-                                    if send_groupcode in grouplist:
-                                        # bot已添加好友，发送消息
-                                        try:
-                                            await nonebot.get_bot().send_group_msg(group_id=send_groupcode, message=msg)
-                                            conn = sqlite3.connect(livedb)
-                                            cursor = conn.cursor()
-                                            cursor.execute(
-                                                "replace into 'g" + send_groupcode + "'(dynamicid,uid) "
-                                                                                     "values('live" + uid + "','" + state + "')")
-                                            cursor.close()
-                                            conn.commit()
-                                            conn.close()
-                                            logger.info("发送群聊成功")
-                                        except Exception as e:
-                                            logger.error(
-                                                '群聊内容发送失败：groupcode：' + str(send_groupcode) + ",message:"
-                                                + message + ",retrnpath:" + returnpath)
-                                        time.sleep(stime)
-                                    else:
-                                        logger.info("bot未入群")
-
+                                        send_groupcode = groupcode.removeprefix("g")
+                                        if send_groupcode in grouplist:
+                                            # bot已添加好友，发送消息
+                                            try:
+                                                if state != 0 and new_push is not True:  # 第一次推送且是下播时不推送
+                                                    now_maximum_send -= 1
+                                                    await nonebot.get_bot().send_group_msg(group_id=send_groupcode, message=msg)
+                                                conn = sqlite3.connect(livedb)
+                                                cursor = conn.cursor()
+                                                cursor.execute(
+                                                    "replace into 'g" + send_groupcode + "'(dynamicid,uid) "
+                                                                                         "values('live" + uid + "','" + state + "')")
+                                                cursor.close()
+                                                conn.commit()
+                                                conn.close()
+                                                logger.info("发送群聊成功")
+                                            except Exception as e:
+                                                logger.error(
+                                                    '群聊内容发送失败：groupcode：' + str(send_groupcode) + ",message:"
+                                                    + message + ",retrnpath:" + returnpath)
+                                            time.sleep(stime)
+                                        else:
+                                            logger.info("bot未入群")
 
     # ############推送动态############
     run = True  # 代码折叠
     if run:
+        logger.info('---------推送动态----------')
         conn = sqlite3.connect(livedb)
         cursor = conn.cursor()
         cursor.execute("SELECT * FROM subscriptionlist2")
