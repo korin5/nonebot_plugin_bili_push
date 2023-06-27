@@ -15,6 +15,22 @@ import random
 require("nonebot_plugin_apscheduler")
 from nonebot_plugin_apscheduler import scheduler
 
+
+def connect_api(type: str, url: str, post_json=None, file_path: str = None):
+    # 把api调用的代码放在一起，方便下一步进行异步开发
+    if type == "json":
+        if post_json is None:
+            return json.loads(requests.get(url).text)
+        else:
+            return json.loads(requests.post(url, json=post_json).text)
+    elif type == "image":
+        # image = connect_api("image", url)
+        return Image.open(BytesIO(requests.get(url).content))
+    elif type == "file":
+        with open(file_path, "wb") as f, requests.get(url) as res:
+            f.write(res.content)
+    return
+
 config = nonebot.get_driver().config
 # 读取配置
 # -》无需修改代码文件，请在“.env”文件中改。《-
@@ -94,7 +110,7 @@ try:
 except Exception as e:
     try:
         get_url = apiurl + "/json/config?name=ping"
-        return_json = json.loads(requests.get(get_url).text)
+        return_json = connect_api("json", get_url)
         if return_json["code"] == 0:
             use_api = True
         else:
@@ -157,6 +173,7 @@ half_text = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N
              '"', "'", "！", " "]
 
 
+
 def get_file_path(file_name):
     """
     获取文件的路径信息，如果没下载就下载下来
@@ -170,8 +187,7 @@ def get_file_path(file_name):
     if not os.path.exists(file_path):
         # 如果文件未缓存，则缓存下来
         url = apiurl + "/file/" + file_name
-        with open(file_path, "wb") as f, requests.get(url) as res:
-            f.write(res.content)
+        connect_api(type="file", url=url, file_path=file_path)
     return file_path
 
 
@@ -184,8 +200,7 @@ def get_emoji(emoji):
         if use_api:
             url = apiurl + "/api/emoji?imageid=" + emoji
             try:
-                return_image = requests.get(url)
-                return_image = Image.open(BytesIO(return_image.content))
+                return_image = connect_api("image", url)
                 return_image.save(cachepath)
             except Exception as e:
                 logger.info("api出错，请联系开发者")
@@ -219,23 +234,6 @@ def is_emoji(emoji):
             return False
     except Exception as e:
         return False
-
-
-def get_commands(message):
-    # 获取发送的消息。使用第一个空格进行分段，无空格则不分段
-    message = str(message)
-    # 去除cq码
-    message = re.sub(u"\\(.*?\\)|\\{.*?}|\\[.*?]", "", message)
-    commands = []
-
-    if ' ' in message:
-        messages = message.split(' ', 1)
-        for command in messages:
-            commands.append(command)
-    else:
-        commands.append(message)
-
-    return commands
 
 
 def circle_corner(img, radii):
@@ -477,8 +475,7 @@ def draw_text(text: str,
                             emoji_name = emoji_info["emoji_name"]
                             if emoji_name == biliemoji_name:
                                 emoji_url = emoji_info["url"]
-                                response = requests.get(emoji_url)
-                                paste_image = Image.open(BytesIO(response.content))
+                                paste_image = connect_api("image", emoji_url)
                                 paste_image = paste_image.resize((int(fortsize * 1.2), int(fortsize * 1.2)))
                                 image.paste(paste_image, (int(x_num * fortsize), int(y_num * fortsize)))
                                 x_num += 1
@@ -606,8 +603,7 @@ def get_draw(data, bili_live: bool = False):
                     draw = ImageDraw.Draw(draw_image)
                     # 开始往图片添加内容
                     # 添加头像
-                    response = requests.get(biliface)
-                    image_face = Image.open(BytesIO(response.content))
+                    image_face = connect_api("image", biliface)
                     image_face = image_face.resize((125, 125))
                     imageround = get_emoji("imageround")
                     imageround = imageround.resize((129, 129))
@@ -645,8 +641,7 @@ def get_draw(data, bili_live: bool = False):
                     draw_image.paste(paste_image, (x, y), mask=paste_image)
 
                     # 添加转发头像
-                    response = requests.get(origin_biliface)
-                    image_face = Image.open(BytesIO(response.content))
+                    image_face = connect_api("image", origin_biliface)
                     image_face = image_face.resize((110, 110))
                     imageround = get_emoji("imageround")
                     imageround = imageround.resize((114, 114))
@@ -671,8 +666,7 @@ def get_draw(data, bili_live: bool = False):
                     paste_image = circle_corner(paste_image, 15)
                     draw_image.paste(paste_image, (x, y), mask=paste_image)
                     # 添加视频图像
-                    response = requests.get(origin_video_image)
-                    paste_image = Image.open(BytesIO(response.content))
+                    paste_image = connect_api("image", origin_video_image)
                     paste_image = paste_image.resize((346, 216))
                     paste_image = circle_corner(paste_image, 15)
                     draw_image.paste(paste_image, (x + 2, y + 2), mask=paste_image)
@@ -728,8 +722,7 @@ def get_draw(data, bili_live: bool = False):
                                         emoji_name = emoji_info["emoji_name"]
                                         if emoji_name == emoji_code:
                                             emoji_url = emoji_info["url"]
-                                            response = requests.get(emoji_url)
-                                            paste_image = Image.open(BytesIO(response.content))
+                                            paste_image = connect_api("image", emoji_url)
                                             paste_image = paste_image.resize((int(fortsize * 1.2), int(fortsize * 1.2)))
                                             draw_image.paste(paste_image,
                                                              (int(x + print_x * fortsize), int(y + print_y * fortsize)))
@@ -806,8 +799,7 @@ def get_draw(data, bili_live: bool = False):
                                             emoji_name = emoji_info["emoji_name"]
                                             if emoji_name == emoji_code:
                                                 emoji_url = emoji_info["url"]
-                                                response = requests.get(emoji_url)
-                                                paste_image = Image.open(BytesIO(response.content))
+                                                paste_image = connect_api("image", emoji_url)
                                                 paste_image = paste_image.resize(
                                                     (int(fortsize * 1.2), int(fortsize * 1.2)))
                                                 draw_image.paste(paste_image,
@@ -898,8 +890,7 @@ def get_draw(data, bili_live: bool = False):
                     imagelen = len(images)
                     if imagelen == 1:
                         # 单图，宽718
-                        response = requests.get(images[0])
-                        addimage = Image.open(BytesIO(response.content))
+                        addimage = connect_api("image", images[0])
                         w, h = addimage.size
                         if h / w >= 1.8:
                             x = 718
@@ -943,8 +934,7 @@ def get_draw(data, bili_live: bool = False):
                     draw = ImageDraw.Draw(draw_image)
                     # 开始往图片添加内容
                     # 添加头像
-                    response = requests.get(biliface)
-                    image_face = Image.open(BytesIO(response.content))
+                    image_face = connect_api("image", biliface)
                     image_face = image_face.resize((125, 125))
                     imageround = get_emoji("imageround")
                     imageround = imageround.resize((129, 129))
@@ -982,8 +972,7 @@ def get_draw(data, bili_live: bool = False):
                     draw_image.paste(paste_image, (x, y), mask=paste_image)
 
                     # 添加转发头像
-                    response = requests.get(origin_biliface)
-                    image_face = Image.open(BytesIO(response.content))
+                    image_face = connect_api("image", origin_biliface)
                     image_face = image_face.resize((110, 110))
                     imageround = get_emoji("imageround")
                     imageround = imageround.resize((114, 114))
@@ -1028,8 +1017,7 @@ def get_draw(data, bili_live: bool = False):
                             if print_x >= 2:
                                 print_x = 0
                                 print_y += 1
-                            response = requests.get(image)
-                            paste_image = Image.open(BytesIO(response.content))
+                            paste_image = connect_api("image", image)
                             paste_image = image_resize2(image=paste_image, size=(356, 356),
                                                         overturn=True)
                             paste_image = circle_corner(paste_image, 15)
@@ -1044,8 +1032,7 @@ def get_draw(data, bili_live: bool = False):
                             if num >= 3:
                                 print_x = x
                                 print_y += 253 + 5
-                            response = requests.get(image)
-                            paste_image = Image.open(BytesIO(response.content))
+                            paste_image = connect_api("image", image)
                             paste_image = image_resize2(image=paste_image, size=(253, 253),
                                                         overturn=True)
                             paste_image = circle_corner(paste_image, 15)
@@ -1113,8 +1100,7 @@ def get_draw(data, bili_live: bool = False):
                     draw = ImageDraw.Draw(draw_image)
                     # 开始往图片添加内容
                     # 添加头像
-                    response = requests.get(biliface)
-                    image_face = Image.open(BytesIO(response.content))
+                    image_face = connect_api("image", biliface)
                     image_face = image_face.resize((125, 125))
                     imageround = get_emoji("imageround")
                     imageround = imageround.resize((129, 129))
@@ -1153,8 +1139,7 @@ def get_draw(data, bili_live: bool = False):
                     draw_image.paste(paste_image, (x, y), mask=paste_image)
 
                     # 添加转发头像
-                    response = requests.get(origin_biliface)
-                    image_face = Image.open(BytesIO(response.content))
+                    image_face = connect_api("image", origin_biliface)
                     image_face = image_face.resize((110, 110))
                     imageround = get_emoji("imageround")
                     imageround = imageround.resize((114, 114))
@@ -1237,8 +1222,7 @@ def get_draw(data, bili_live: bool = False):
                     draw = ImageDraw.Draw(draw_image)
                     # 开始往图片添加内容
                     # 添加头像
-                    response = requests.get(biliface)
-                    image_face = Image.open(BytesIO(response.content))
+                    image_face = connect_api("image", biliface)
                     image_face = image_face.resize((125, 125))
                     imageround = get_emoji("imageround")
                     imageround = imageround.resize((129, 129))
@@ -1276,8 +1260,7 @@ def get_draw(data, bili_live: bool = False):
                     draw_image.paste(paste_image, (x, y), mask=paste_image)
 
                     # 添加转发头像
-                    response = requests.get(origin_biliface)
-                    image_face = Image.open(BytesIO(response.content))
+                    image_face = connect_api("image", origin_biliface)
                     image_face = image_face.resize((110, 110))
                     imageround = get_emoji("imageround")
                     imageround = imageround.resize((114, 114))
@@ -1302,8 +1285,7 @@ def get_draw(data, bili_live: bool = False):
                     paste_image = circle_corner(paste_image, 15)
                     draw_image.paste(paste_image, (x, y), mask=paste_image)
                     # 添加文章图像
-                    response = requests.get(origin_image)
-                    paste_image = Image.open(BytesIO(response.content))
+                    paste_image = connect_api("image", origin_image)
                     paste_image = paste_image.resize((726, 216))
                     paste_image = circle_corner(paste_image, 15)
                     draw_image.paste(paste_image, (x + 2, y + 2), mask=paste_image)
@@ -1382,8 +1364,7 @@ def get_draw(data, bili_live: bool = False):
                     draw = ImageDraw.Draw(draw_image)
                     # 开始往图片添加内容
                     # 添加头像
-                    response = requests.get(biliface)
-                    image_face = Image.open(BytesIO(response.content))
+                    image_face = connect_api("image", biliface)
                     image_face = image_face.resize((125, 125))
                     imageround = get_emoji("imageround")
                     imageround = imageround.resize((129, 129))
@@ -1489,8 +1470,7 @@ def get_draw(data, bili_live: bool = False):
                     draw = ImageDraw.Draw(draw_image)
                     # 开始往图片添加内容
                     # 添加头像
-                    response = requests.get(biliface)
-                    image_face = Image.open(BytesIO(response.content))
+                    image_face = connect_api("image", biliface)
                     image_face = image_face.resize((125, 125))
                     imageround = get_emoji("imageround")
                     imageround = imageround.resize((129, 129))
@@ -1529,8 +1509,7 @@ def get_draw(data, bili_live: bool = False):
                     draw_image.paste(paste_image, (x, y), mask=paste_image)
 
                     # 添加直播封面
-                    response = requests.get(origin_image)
-                    paste_image = Image.open(BytesIO(response.content))
+                    paste_image = connect_api("image", origin_image)
                     paste_image = paste_image.resize((718, 403))
                     paste_image = circle_corner(paste_image, 15)
                     draw_image.paste(paste_image, (x, y), mask=paste_image)
@@ -1588,8 +1567,7 @@ def get_draw(data, bili_live: bool = False):
                 # 添加图片长度
                 imagelen = len(images)
                 if imagelen == 1:
-                    response = requests.get(images[0])
-                    addimage = Image.open(BytesIO(response.content))
+                    addimage = connect_api("image", images[0])
                     w, h = addimage.size
                     if h / w >= 1.8:
                         x = 770
@@ -1631,8 +1609,7 @@ def get_draw(data, bili_live: bool = False):
                 draw = ImageDraw.Draw(draw_image)
                 # 开始往图片添加内容
                 # 添加头像
-                response = requests.get(biliface)
-                image_face = Image.open(BytesIO(response.content))
+                image_face = connect_api("image", biliface)
                 image_face = image_face.resize((125, 125))
                 imageround = get_emoji("imageround")
                 imageround = imageround.resize((129, 129))
@@ -1675,8 +1652,7 @@ def get_draw(data, bili_live: bool = False):
                             print_x = 0
                             print_y += 1
 
-                        response = requests.get(image)
-                        paste_image = Image.open(BytesIO(response.content))
+                        paste_image = connect_api("image", image)
                         paste_image = image_resize2(image=paste_image, size=(382, 382), overturn=True)
                         paste_image = circle_corner(paste_image, 15)
                         draw_image.paste(paste_image, (int(x + print_x * (382 + 5)), int(y + print_y * (382 + 5))),
@@ -1690,8 +1666,7 @@ def get_draw(data, bili_live: bool = False):
                             print_x = 0
                             print_y += 1
 
-                        response = requests.get(image)
-                        paste_image = Image.open(BytesIO(response.content))
+                        paste_image = connect_api("image", image)
                         paste_image = image_resize2(image=paste_image, size=(253, 253), overturn=True)
                         paste_image = circle_corner(paste_image, 15)
                         draw_image.paste(paste_image, (int(x + print_x * (253 + 5)), int(y + print_y * (253 + 5))),
@@ -1742,8 +1717,7 @@ def get_draw(data, bili_live: bool = False):
                 draw = ImageDraw.Draw(draw_image)
                 # 开始往图片添加内容
                 # 添加头像
-                response = requests.get(biliface)
-                image_face = Image.open(BytesIO(response.content))
+                image_face = connect_api("image", biliface)
                 image_face = image_face.resize((125, 125))
                 imageround = get_emoji("imageround")
                 imageround = imageround.resize((129, 129))
@@ -1812,8 +1786,7 @@ def get_draw(data, bili_live: bool = False):
 
                 # 开始往图片添加内容
                 # 添加头像
-                response = requests.get(biliface)
-                image_face = Image.open(BytesIO(response.content))
+                image_face = connect_api("image", biliface)
                 image_face = image_face.resize((125, 125))
                 imageround = get_emoji("imageround")
                 imageround = imageround.resize((129, 129))
@@ -1869,8 +1842,7 @@ def get_draw(data, bili_live: bool = False):
                                     emoji_name = emoji_info["emoji_name"]
                                     if emoji_name == emoji_code:
                                         emoji_url = emoji_info["url"]
-                                        response = requests.get(emoji_url)
-                                        paste_image = Image.open(BytesIO(response.content))
+                                        paste_image = connect_api("image", emoji_url)
                                         paste_image = paste_image.resize((int(fortsize * 1.2), int(fortsize * 1.2)))
                                         draw_image.paste(paste_image,
                                                          (int(x + print_x * fortsize), int(y + print_y * fortsize)))
@@ -1904,8 +1876,7 @@ def get_draw(data, bili_live: bool = False):
                 # 添加视频图像
                 x += 2
                 y += 2
-                response = requests.get(card_image)
-                paste_image = Image.open(BytesIO(response.content))
+                paste_image = connect_api("image", card_image)
                 paste_image = image_resize2(paste_image, (313, 196))
                 paste_image = circle_corner(paste_image, 15)
                 draw_image.paste(paste_image, (x, y), mask=paste_image)
@@ -1954,8 +1925,7 @@ def get_draw(data, bili_live: bool = False):
                                     emoji_name = emoji_info["emoji_name"]
                                     if emoji_name == emoji_code:
                                         emoji_url = emoji_info["url"]
-                                        response = requests.get(emoji_url)
-                                        paste_image = Image.open(BytesIO(response.content))
+                                        paste_image = connect_api("image", emoji_url)
                                         paste_image = paste_image.resize((int(fortsize * 1.2), int(fortsize * 1.2)))
                                         draw_image.paste(paste_image,
                                                          (int(x + print_x * fortsize), int(y + print_y * fortsize)))
@@ -2026,8 +1996,7 @@ def get_draw(data, bili_live: bool = False):
                                     emoji_name = emoji_info["emoji_name"]
                                     if emoji_name == emoji_code:
                                         emoji_url = emoji_info["url"]
-                                        response = requests.get(emoji_url)
-                                        paste_image = Image.open(BytesIO(response.content))
+                                        paste_image = connect_api("image", emoji_url)
                                         paste_image = paste_image.resize((int(fortsize * 1.2), int(fortsize * 1.2)))
                                         draw_image.paste(paste_image,
                                                          (int(x + print_x * fortsize), int(y + print_y * fortsize)))
@@ -2086,11 +2055,20 @@ get_new = on_command("最新动态", aliases={'添加订阅', '删除订阅', '�
 async def _(bot: Bot, messageevent: MessageEvent):
     logger.info("bili-push_command")
     returnpath = ""
+    message = ""
     code = 0
-    qq = str(messageevent.get_user_id())
-    message = messageevent.get_message()
-    message = str(message)
-    commands = get_commands(message)
+    qq = messageevent.get_user_id()
+
+    msg = messageevent.get_message()
+    msg = re.sub(u"\\(.*?\\)|\\{.*?}|\\[.*?]", "", str(msg))
+    commands = []
+    if ' ' in msg:
+        messages = msg.split(' ', 1)
+        for command in messages:
+            commands.append(command)
+    else:
+        commands.append(msg)
+
     command = str(commands[0])
     for command_start in command_starts:
         if commands != "":
@@ -2177,10 +2155,7 @@ async def _(bot: Bot, messageevent: MessageEvent):
             uid = command2
             logger.info(f"开始获取信息-{uid}")
             url = 'https://api.vc.bilibili.com/dynamic_svr/v1/dynamic_svr/space_history?host_uid=' + uid
-            s = json.dumps({'key1': 'value1', 'key2': 'value2'})
-            h = {'Content-Type': 'application/x-www-form-urlencoded'}
-            returnjson = requests.post(url, data=s, headers=h).text
-            returnjson = json.loads(returnjson)
+            returnjson = connect_api("json", url)
             returncode = returnjson["code"]
             logger.info('returncode:' + str(returncode))
             if returncode == 0:
@@ -2238,10 +2213,7 @@ async def _(bot: Bot, messageevent: MessageEvent):
                     # 将历史动态存到数据库中
                     logger.info('关注成功，将历史动态存到数据库中')
                     url = 'https://api.vc.bilibili.com/dynamic_svr/v1/dynamic_svr/space_history?host_uid=' + uid
-                    s = json.dumps({'key1': 'value1', 'key2': 'value2'})
-                    h = {'Content-Type': 'application/x-www-form-urlencoded'}
-                    returnjson = requests.post(url, data=s, headers=h).text
-                    returnjson = json.loads(returnjson)
+                    returnjson = connect_api("json", url)
                     returncode = returnjson["code"]
                     if returncode == 0:
                         logger.info('获取动态图片并发送')
@@ -2463,10 +2435,7 @@ async def run_bili_push():
             for uid in subscriptionlist:
                 logger.info(f"开始获取信息-{uid}")
                 url = 'https://api.vc.bilibili.com/dynamic_svr/v1/dynamic_svr/space_history?host_uid=' + uid
-                s = json.dumps({'key1': 'value1', 'key2': 'value2'})
-                h = {'Content-Type': 'application/x-www-form-urlencoded'}
-                returnjson = requests.post(url, data=s, headers=h).text
-                returnjson = json.loads(returnjson)
+                returnjson = connect_api("json", url)
                 returncode = returnjson["code"]
                 return_datas = returnjson["data"]
                 return_datas = return_datas["cards"]
@@ -2530,8 +2499,8 @@ async def run_bili_push():
                 subscriptionlist.append(uid)
             if subscriptionlist:
                 url = "https://api.live.bilibili.com/room/v1/Room/get_status_info_by_uids"
-                d = {"uids": subscriptionlist}
-                json_data = json.loads(requests.post(url, json=d).text)
+                post_json = {"uids": subscriptionlist}
+                json_data = connect_api("json", url, post_json=post_json)
                 if json_data["code"] != 0:
                     logger.error("直播api出错请将此消息反馈给开发者，sub[0]=" + str(subscriptionlist[0]) +
                                  ",msg=" + json_data["message"])
@@ -2569,8 +2538,7 @@ async def run_bili_push():
 
                                 # 开始往图片添加内容
                                 # 添加头像
-                                response = requests.get(face)
-                                image_face = Image.open(BytesIO(response.content))
+                                image_face = connect_api("image", face)
                                 image_face = image_face.resize((125, 125))
                                 imageround = get_emoji("imageround")
                                 imageround = imageround.resize((129, 129))
@@ -2592,8 +2560,7 @@ async def run_bili_push():
                                 draw.text(xy=(75, 270), text=live_title, fill=(0, 0, 0), font=font)
 
                                 # 添加封面
-                                response = requests.get(cover_from_user)
-                                paste_image = Image.open(BytesIO(response.content))
+                                paste_image = connect_api("image", cover_from_user)
                                 paste_image = paste_image.resize((772, 434))
                                 paste_image = circle_corner(paste_image, 15)
                                 draw_image.paste(paste_image, (75, 330))
