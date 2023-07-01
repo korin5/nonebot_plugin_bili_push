@@ -93,8 +93,12 @@ except Exception as e:
 # 配置2：
 try:
     basepath = config.bilipush_basepath
+    if "\\" in basepath:
+        basepath = basepath.replace("\\", "/")
     if basepath.startswith("./"):
         basepath = os.path.abspath('.') + "/" + basepath.removeprefix(".")
+        if not basepath.endswith("/"):
+            basepath += "/"
     else:
         basepath += "/"
 except Exception as e:
@@ -2334,7 +2338,7 @@ minute = "*/" + waittime
 
 @scheduler.scheduled_job("cron", minute=minute, id="job_0")
 async def run_bili_push():
-    logger.info("bili_push_0.1.21")
+    logger.info("bili_push_0.1.22")
     # ############开始自动运行插件############
     now_maximum_send = maximum_send
     import time
@@ -2772,6 +2776,8 @@ async def run_bili_push():
                                                 if state != 0 and new_push is not True:  # 第一次推送且是下播时不推送
                                                     now_maximum_send -= 1
                                                     await nonebot.get_bot().send_group_msg(group_id=send_groupcode, message=msg)
+                                                    logger.info("发送群聊成功")
+                                                    time.sleep(stime)
                                                 conn = sqlite3.connect(livedb)
                                                 cursor = conn.cursor()
                                                 cursor.execute(
@@ -2780,12 +2786,10 @@ async def run_bili_push():
                                                 cursor.close()
                                                 conn.commit()
                                                 conn.close()
-                                                logger.info("发送群聊成功")
                                             except Exception as e:
                                                 logger.error(
                                                     '群聊内容发送失败：groupcode：' + str(send_groupcode) + ",message:"
                                                     + message + ",retrnpath:" + returnpath)
-                                            time.sleep(stime)
                                         else:
                                             logger.info("bot未入群")
 
