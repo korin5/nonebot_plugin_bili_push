@@ -2388,7 +2388,7 @@ async def run_bili_push():
             datas = cursor.fetchall()
             for data in datas:
                 cursor.execute(f'replace into subscriptionlist2 ("groupcode","uid") values("{data[1]}",{data[2]})')
-    if "livelist" not in tables:
+    if "livelist2" not in tables:
         # 如未创建，则创建
         cursor.execute('create table livelist2(uid varchar(10) primary key, '
                        'state varchar(10), draw varchar(10), username varchar(10), message_title varchar(10))')
