@@ -392,8 +392,13 @@ def draw_text(text: str,
     """
 
 
-    if fontfile == "":
-        fontfile = get_file_path("腾祥嘉丽中圆.ttf")
+    fortsize = size
+    if use_api:
+        if fontfile == "":
+            fontfile = get_file_path("腾祥嘉丽中圆.ttf")
+        font = ImageFont.truetype(font=fontfile, size=fortsize)
+    else:
+        font = None
     # 计算图片尺寸
     x_num = -1
     y_num = 0
@@ -442,8 +447,6 @@ def draw_text(text: str,
 
     image = Image.new("RGBA", size=(x, y), color=(0, 0, 0, 0))  # 生成透明图片
     draw_image = ImageDraw.Draw(image)
-    fortsize = size
-    font = ImageFont.truetype(font=fontfile, size=fortsize)
 
     if not calculate:
         x_num = -1
@@ -492,15 +495,17 @@ def draw_text(text: str,
                         paste_image = paste_image.resize((int(fortsize * 1.1), int(fortsize * 1.1)))
                         image.paste(paste_image, (int(x_num * fortsize), int(y_num * fortsize)), mask=paste_image)
                     else:
-                        draw_image.text(xy=(int(x_num * fortsize), int(y_num * fortsize)), text=fort,
-                                        fill=(0, 0, 0), font=font)
+                        draw_image.text(xy=(int(x_num * fortsize), int(y_num * fortsize)),
+                                        text=fort,
+                                        fill=(0, 0, 0),
+                                        font=font)
                         if fort in half_text:
                             x_num -= 0.4
 
     return image
 
 
-def get_draw(data):
+def get_draw(data, only_info: bool = False):
     import time
     date = str(time.strftime("%Y-%m-%d", time.localtime()))
     date_year = str(time.strftime("%Y", time.localtime()))
@@ -549,9 +554,52 @@ def get_draw(data):
         message_url = "bilibili.com/opus/" + dynamicid
         message_images = []
 
+        if only_info:
+            bilitype = 0
+
         # ### 绘制动态 #####################
+
+        # 绘制名片
+        if bilitype == 0:
+            brief_introduction = biliname = data["desc"]["user_profile"]["card"]["desc"]
+
+            fortsize = 30
+            font = ImageFont.truetype(font=fontfile, size=fortsize)
+
+            draw_image = new_background(900, 400)
+            draw = ImageDraw.Draw(draw_image)
+            # 开始往图片添加内容
+            # 添加头像
+            image_face = connect_api("image", biliface)
+            image_face = image_face.resize((125, 125))
+            imageround = get_emoji("imageround")
+            imageround = imageround.resize((129, 129))
+            draw_image.paste(imageround, (73, 73), mask=imageround)
+            imageround = imageround.resize((125, 125))
+            draw_image.paste(image_face, (75, 75), mask=imageround)
+
+            # 添加名字
+            cache_font = ImageFont.truetype(font=fontfile, size=35)
+            draw.text(xy=(230, 85), text=biliname, fill=(0, 0, 0), font=cache_font)
+
+            # 添加简介
+            x = 75
+            y = 230
+            paste_image = draw_text(brief_introduction,
+                                    size=30,
+                                    textlen=24)
+            draw_image.paste(paste_image, (x, y), mask=paste_image)
+
+            returnpath = cachepath + 'bili动态/'
+            if not os.path.exists(returnpath):
+                os.makedirs(returnpath)
+            returnpath = returnpath + date + '_' + timenow + '_' + random_num + '.png'
+            draw_image.save(returnpath)
+            logger.info("bili-push_draw_绘图成功")
+            code = 2
+
         # 转发动态
-        if bilitype == 1:
+        elif bilitype == 1:
             card_message = bilidata["item"]["content"]
             origin_type = bilidata["item"]["orig_type"]
             try:
@@ -1747,7 +1795,6 @@ def get_draw(data):
                                         textlen=24,
                                         biliemoji_infos=emoji_infos)
                 draw_image.paste(paste_image, (x, y), mask=paste_image)
-                w, h = paste_image.size
 
                 returnpath = cachepath + 'bili动态/'
                 if not os.path.exists(returnpath):
@@ -2225,33 +2272,42 @@ async def _(bot: Bot, messageevent: MessageEvent):
                     if returncode == 0:
                         logger.info('获取动态图片并发送')
                         # 获取动态id并保存
-                        return_datas = returnjson["data"]["cards"]
-
-                        try:
+                        if returnjson["data"]["has_more"] == 1:
+                            return_datas = returnjson["data"]["cards"]
+                            try:
+                                conn = sqlite3.connect(livedb)
+                                cursor = conn.cursor()
+                                cursor.execute('create table ' + groupcode +
+                                               '(dynamicid int(10) primary key, uid varchar(10))')
+                                cursor.close()
+                                conn.commit()
+                                conn.close()
+                            except Exception as e:
+                                logger.info("已存在群推送列表，开始读取数据库")
                             conn = sqlite3.connect(livedb)
                             cursor = conn.cursor()
-                            cursor.execute('create table ' + groupcode +
-                                           '(dynamicid int(10) primary key, uid varchar(10))')
+                            for return_data in return_datas:
+                                dynamicid = str(return_data["desc"]["dynamic_id"])
+                                cursor.execute(
+                                    "replace into "+groupcode+"(dynamicid,uid) values('" + dynamicid + "','" + uid + "')")
                             cursor.close()
                             conn.commit()
                             conn.close()
-                        except Exception as e:
-                            logger.info("已存在群推送列表，开始读取数据库")
-                        conn = sqlite3.connect(livedb)
-                        cursor = conn.cursor()
-                        for return_data in return_datas:
-                            dynamicid = str(return_data["desc"]["dynamic_id"])
-                            cursor.execute(
-                                "replace into "+groupcode+"(dynamicid,uid) values('" + dynamicid + "','" + uid + "')")
-                        cursor.close()
-                        conn.commit()
-                        conn.close()
 
-                        code = 1
-                        message = "添加订阅成功"
+                            drawimage = get_draw(return_datas[0], only_info=True)
+                            if drawimage["code"] == 2:
+                                returnpath = drawimage["draw_path"]
+                                message = "添加订阅成功"
+                                code = 3
+                            else:
+                                code = 1
+                                message = "添加订阅成功"
+                        else:
+                            code = 1
+                            message = "添加订阅成功。\n该up主未发布任何动态，请确认是否填写了正确的uid"
                     else:
                         code = 1
-                        message = "保存数据库出错"
+                        message = "获取动态内容出错"
                 else:
                     code = 1
                     message = "该up主已存在数据库中"
@@ -2446,40 +2502,45 @@ async def run_bili_push():
                     url = 'https://api.vc.bilibili.com/dynamic_svr/v1/dynamic_svr/space_history?host_uid=' + uid
                     returnjson = connect_api("json", url)
                     returncode = returnjson["code"]
-                    return_datas = returnjson["data"]
-                    return_datas = return_datas["cards"]
-                    logger.info('获取up主动态列表成功')
-                    # 比较已保存内容
-
-                    conn = sqlite3.connect(livedb)
-                    cursor = conn.cursor()
-                    for return_data in return_datas:
-                        dynamicid = str(return_data["desc"]["dynamic_id"])
-                        cursor.execute("SELECT * FROM 'wait_push2' WHERE dynamicid = '" + dynamicid + "'")
-                        data = cursor.fetchone()
-                        if not data:
-                            dyma_data = time.localtime(int(return_data["desc"]["timestamp"]))
-                            dyma_data = int(time.strftime("%Y%m%d%H%M%S", dyma_data))
-                            now_data = int(dateshort + timeshort)
-                            time_distance = now_data - dyma_data
-                            # 不推送3天以前的动态
-                            if time_distance < 300:
-                                return_draw = get_draw(return_data)
-                                if return_draw["code"] != 2:
-                                    logger.info("不支持类型")
-                                else:
-                                    draw_path = return_draw["draw_path"]
-                                    message_title = return_draw["draw_path"]
-                                    message_url = return_draw["draw_path"]
-                                    message_body = return_draw["draw_path"]
-                                    message_images = str({"images": return_draw["draw_path"]})
-                                    cursor.execute(f"replace into wait_push2(dynamicid,uid,draw_path,message_title,"
-                                                   f'message_url,message_body,message_images) values("{dynamicid}","{uid}",'
-                                                   f'"{draw_path}","{message_title}","{message_url}","{message_body}",'
-                                                   f'"{message_images}")')
-                    cursor.close()
-                    conn.commit()
-                    conn.close()
+                    if returncode != 0:
+                        logger.error("bapi连接出错，请检查订阅uid是否正确")
+                    else:
+                        return_datas = returnjson["data"]
+                        if return_datas["has_more"] == 0:
+                            logger.info("该up主无动态")
+                        else:
+                            return_datas = return_datas["cards"]
+                            logger.info('获取up主动态列表成功')
+                            # 比较已保存内容
+                            conn = sqlite3.connect(livedb)
+                            cursor = conn.cursor()
+                            for return_data in return_datas:
+                                dynamicid = str(return_data["desc"]["dynamic_id"])
+                                cursor.execute("SELECT * FROM 'wait_push2' WHERE dynamicid = '" + dynamicid + "'")
+                                data = cursor.fetchone()
+                                if not data:
+                                    dyma_data = time.localtime(int(return_data["desc"]["timestamp"]))
+                                    dyma_data = int(time.strftime("%Y%m%d%H%M%S", dyma_data))
+                                    now_data = int(dateshort + timeshort)
+                                    time_distance = now_data - dyma_data
+                                    # 不推送3天以前的动态
+                                    if time_distance < 300:
+                                        return_draw = get_draw(return_data)
+                                        if return_draw["code"] != 2:
+                                            logger.info("不支持类型")
+                                        else:
+                                            draw_path = return_draw["draw_path"]
+                                            message_title = return_draw["draw_path"]
+                                            message_url = return_draw["draw_path"]
+                                            message_body = return_draw["draw_path"]
+                                            message_images = str({"images": return_draw["draw_path"]})
+                                            cursor.execute(f"replace into wait_push2(dynamicid,uid,draw_path,message_title,"
+                                                           f'message_url,message_body,message_images) values("{dynamicid}","{uid}",'
+                                                           f'"{draw_path}","{message_title}","{message_url}","{message_body}",'
+                                                           f'"{message_images}")')
+                            cursor.close()
+                            conn.commit()
+                            conn.close()
 
         # ############获取直播状态############
         run = True  # 代码折叠
@@ -2914,7 +2975,7 @@ async def run_bili_push():
                         # 获取已推送的动态列表
                         conn = sqlite3.connect(livedb)
                         cursor = conn.cursor()
-                        cursor.execute("SELECT * FROM "+groupcode+" WHERE uid = " + uid)
+                        cursor.execute("SELECT * FROM " + groupcode + " WHERE uid = " + uid)
                         pushed_datas = cursor.fetchall()
                         cursor.close()
                         conn.commit()
@@ -2970,9 +3031,7 @@ async def run_bili_push():
 
                             returnpath = data[2]
                             msg = MessageSegment.image(r"file:///" + returnpath)
-
                             stime = random.randint(1, 200) / 10 + sleeptime
-
                             if "p" in groupcode:
                                 send_qq = groupcode.removeprefix("gp")
                                 if send_qq in friendlist:
@@ -2993,7 +3052,6 @@ async def run_bili_push():
                                     time.sleep(stime)
                                 else:
                                     logger.info("bot未入群")
-
                             else:
                                 send_groupcode = groupcode.removeprefix("g")
                                 logger.info("groupcode:")
