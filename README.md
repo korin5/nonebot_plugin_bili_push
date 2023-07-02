@@ -60,6 +60,14 @@
 时间为设置的时间再加上随机延迟1-20秒
 
     bilipush_sleeptime=10
+
+单次循环最大发送数量
+
+限制单次发送数量，防止一次性发送太多图导致风控。
+默认5条
+
+	bilipush_maximum_send=5
+
     
 只响应一个bot（beta）
 
@@ -96,6 +104,12 @@
  - [x] ~~取消推送过时动态~~
  - [x] ~~emoji不能正常打印~~
  - [x] ~~添加动态类型不支持时的解决方法~~
+ 
+## 更新日志
+### 0.1.23  
+优化首次加载流程，字体在使用的时候再加载  
+增加一个nb对接多个gocq的连接方式  
+修复第一次直播推送不发消息
 
 ## 参考内容
 Mirai动态绘制插件 [BilibiliDynamic MiraiPlugin](https://github.com/Colter23/bilibili-dynamic-mirai-plugin)
