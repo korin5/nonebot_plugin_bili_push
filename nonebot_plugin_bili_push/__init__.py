@@ -561,7 +561,11 @@ def get_draw(data, only_info: bool = False):
 
         # 绘制名片
         if bilitype == 0:
-            brief_introduction = biliname = data["desc"]["user_profile"]["card"]["desc"]
+            # 应该是改为这样就可以了，等验证完再优化
+            try:
+                brief_introduction = biliname = data["desc"]["info"]["uname"]
+            except Exception as e:
+                brief_introduction = biliname = data["desc"]["user_profile"]["card"]["desc"]
 
             fortsize = 30
             font = ImageFont.truetype(font=fontfile, size=fortsize)
@@ -2107,7 +2111,7 @@ get_new = on_command("最新动态", aliases={'添加订阅', '删除订阅', '�
 
 @get_new.handle()
 async def _(bot: Bot, messageevent: MessageEvent):
-    logger.info("bili_push_command_0.1.24")
+    logger.info("bili_push_command_0.1.25")
     returnpath = ""
     message = ""
     code = 0
@@ -2307,7 +2311,7 @@ async def _(bot: Bot, messageevent: MessageEvent):
                             message = "添加订阅成功。\n该up主未发布任何动态，请确认是否填写了正确的uid"
                     else:
                         code = 1
-                        message = "获取动态内容出错"
+                        message = "获取动态内容出错，请检查uid是否正确"
                 else:
                     code = 1
                     message = "该up主已存在数据库中"
@@ -2397,7 +2401,7 @@ minute = "*/" + waittime
 
 @scheduler.scheduled_job("cron", minute=minute, id="job_0")
 async def run_bili_push():
-    logger.info("bili_push_0.1.24")
+    logger.info("bili_push_0.1.25")
     # ############开始自动运行插件############
     now_maximum_send = maximum_send
     import time
@@ -2518,26 +2522,29 @@ async def run_bili_push():
                                 dynamicid = str(return_data["desc"]["dynamic_id"])
                                 cursor.execute("SELECT * FROM 'wait_push2' WHERE dynamicid = '" + dynamicid + "'")
                                 data = cursor.fetchone()
-                                if not data:
-                                    dyma_data = time.localtime(int(return_data["desc"]["timestamp"]))
-                                    dyma_data = int(time.strftime("%Y%m%d%H%M%S", dyma_data))
-                                    now_data = int(dateshort + timeshort)
-                                    time_distance = now_data - dyma_data
+                                if data is None:
+                                    dyma_data = return_data["desc"]["timestamp"]
+                                    now = int(time.time())
+                                    time_distance = now - dyma_data
                                     # 不推送3天以前的动态
-                                    if time_distance < 300:
+                                    # 3天：86400
+                                    if time_distance < 86400:
                                         return_draw = get_draw(return_data)
                                         if return_draw["code"] != 2:
                                             logger.info("不支持类型")
                                         else:
                                             draw_path = return_draw["draw_path"]
-                                            message_title = return_draw["draw_path"]
-                                            message_url = return_draw["draw_path"]
-                                            message_body = return_draw["draw_path"]
-                                            message_images = str({"images": return_draw["draw_path"]})
+                                            message_title = return_draw["message_title"]
+                                            message_url = return_draw["message_url"]
+                                            message_body = return_draw["message_body"]
+                                            message_images = str({"images": return_draw["message_images"]})
+
+                                            message_body = message_body.replace("'", '"')
+
                                             cursor.execute(f"replace into wait_push2(dynamicid,uid,draw_path,message_title,"
                                                            f'message_url,message_body,message_images) values("{dynamicid}","{uid}",'
-                                                           f'"{draw_path}","{message_title}","{message_url}","{message_body}",'
-                                                           f'"{message_images}")')
+                                                f'"{draw_path}","{message_title}","{message_url}",'+f"'{message_body}'"
+                                                f',"{message_images}")')
                             cursor.close()
                             conn.commit()
                             conn.close()
