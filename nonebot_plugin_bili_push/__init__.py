@@ -979,9 +979,10 @@ def get_draw(data, only_info: bool = False):
                     else:
                         # 6图，图大小245
                         origin_len_y += 10
-                        while imagelen >= 1:
-                            imagelen -= 3
-                            origin_len_y += 245 + 5
+                    cache_imagelen = imagelen
+                    while cache_imagelen >= 1:
+                        cache_imagelen -= 3
+                        origin_len_y += 235 + 5
 
                     origin_len_y = int(origin_len_y)
                     # 将转发长度添加到总长度中
@@ -1083,20 +1084,21 @@ def get_draw(data, only_info: bool = False):
                             draw_image.paste(paste_image, (int(x + print_x * (356 + 5)), int(y + print_y * (356 + 5))),
                                              mask=paste_image)
                     else:
-                        # 6图，图大小245
-                        image_y += 506 + 15
-                        num = 0
+                        # 6图，图大小235
+                        image_y += 707 + 15
+                        num = -1
                         for image in images:
                             num += 1
                             if num >= 3:
+                                num = 0
                                 print_x = x
-                                print_y += 253 + 5
+                                print_y += 235 + 5
                             paste_image = connect_api("image", image)
-                            paste_image = image_resize2(image=paste_image, size=(253, 253),
+                            paste_image = image_resize2(image=paste_image, size=(235, 235),
                                                         overturn=True)
                             paste_image = circle_corner(paste_image, 15)
                             draw_image.paste(paste_image, (int(print_x), int(print_y)), mask=paste_image)
-                            print_x += 253 + 5
+                            print_x += 235 + 5
 
                     returnpath = cachepath + 'bili动态/'
                     if not os.path.exists(returnpath):
@@ -2085,7 +2087,208 @@ def get_draw(data, only_info: bool = False):
 
         # 投稿文章
         elif bilitype == 64:
-            print()
+            card_title = bilidata["title"]
+            card_message = bilidata["summary"]
+            card_image = bilidata["image_urls"][0]
+            try:
+                emoji_infos = data["display"]["emoji_info"]["emoji_details"]
+            except Exception as e:
+                emoji_infos = []
+            logger.info("bili-push_开始拼接文字")
+            if run:
+                message_title = biliname + "投稿了文章"
+                message_body = card_message
+                if len(message_body) > 80:
+                    message_body = message_body[0:79] + "……"
+                message_images = [card_image]
+            logger.info("bili-push_开始绘图")
+            if run:
+                # 开始绘图
+                image_x = 900
+                image_y = 700
+                draw_image = new_background(image_x, image_y)
+                draw = ImageDraw.Draw(draw_image)
+
+                # 开始往图片添加内容
+                # 添加头像
+                image_face = connect_api("image", biliface)
+                image_face = image_face.resize((125, 125))
+                imageround = get_emoji("imageround")
+                imageround = imageround.resize((129, 129))
+                draw_image.paste(imageround, (73, 73), mask=imageround)
+                imageround = imageround.resize((125, 125))
+                draw_image.paste(image_face, (75, 75), mask=imageround)
+
+                # 添加名字
+                cache_font = ImageFont.truetype(font=fontfile, size=35)
+                draw.text(xy=(230, 85), text=biliname, fill=(0, 0, 0), font=cache_font)
+
+                # 添加日期
+                draw.text(xy=(230, 145), text=timestamp, fill=(100, 100, 100), font=font)
+
+                x = 75
+                y = 246
+                # 添加文章消息边沿
+                paste_image = Image.new("RGB", (776, 404), "#FFFFFF")
+                paste_image = circle_corner(paste_image, 15)
+                draw_image.paste(paste_image, (x - 2, y - 2), mask=paste_image)
+                # 添加文章消息框
+                paste_image = Image.new("RGB", (772, 400), "#f8fbfd")
+                paste_image = circle_corner(paste_image, 15)
+                draw_image.paste(paste_image, (x, y), mask=paste_image)
+                # 添加文章图像
+                x += 2
+                y += 2
+                paste_image = connect_api("image", card_image)
+                paste_image = image_resize2(paste_image, (768, 225))
+                paste_image = circle_corner(paste_image, 15)
+                draw_image.paste(paste_image, (x, y), mask=paste_image)
+                # 添加文章标题
+                y += 230
+                if len(card_title) > 60:
+                    card_title = card_title[0:60] + "…"
+
+                print_x = -1
+                print_y = 0
+                num = 0
+                jump_num = 0
+
+                fortsize = 27
+                cache_font = ImageFont.truetype(font=fontfile, size=fortsize)
+
+                textnum = 0
+                for text in card_title:
+                    if jump_num > 0:
+                        jump_num -= 1
+                    else:
+                        print_x += 1
+                        textnum += 1
+                        num += 1
+                        # 打印换行
+                        if num > 28 or text == "\n":
+                            num = 1
+                            print_y += 1.2
+                            print_x = 0
+                            if text == "\n":
+                                print_x = -1
+
+                        # 检测biliemoji
+                        emoji_code = ""
+                        if text == "[":
+                            testnum = 1
+                            while testnum <= 55:
+                                testnum += 1
+                                findnum = textnum + testnum
+                                if card_message[findnum] == "]":
+                                    emoji_code = "[" + card_message[textnum:findnum] + "]"
+                                    jump_num = len(emoji_code) - 1
+                                    testnum = 60
+                            if emoji_code != "":
+                                # 粘贴biliemoji
+                                for emoji_info in emoji_infos:
+                                    emoji_name = emoji_info["emoji_name"]
+                                    if emoji_name == emoji_code:
+                                        emoji_url = emoji_info["url"]
+                                        paste_image = connect_api("image", emoji_url)
+                                        paste_image = paste_image.resize((int(fortsize * 1.2), int(fortsize * 1.2)))
+                                        draw_image.paste(paste_image,
+                                                         (int(x + print_x * fortsize), int(y + print_y * fortsize)))
+                                        print_x += 0.5
+
+                        if emoji_code == "":
+                            # 检测是否半格字符
+                            if not is_emoji(text):
+                                # 打印文字
+                                draw.text(xy=(int(x + print_x * fortsize), int(y + print_y * fortsize)), text=text,
+                                          fill=(0, 0, 0), font=cache_font)
+                                if text in half_text:
+                                    print_x -= 0.4
+                            else:
+                                # 打印表情
+                                paste_image = get_emoji(font)
+                                paste_image = paste_image.resize((int(fortsize * 1.1), int(fortsize * 1.1)))
+                                draw_image.paste(paste_image,
+                                                 (int(x + print_x * fortsize), int(y + print_y * fortsize)))
+
+                # 添加文章内容
+                y += (print_y + 1) * fortsize
+                if len(card_message) > 90:
+                    card_message = card_message[0:90] + "…"
+
+                print_x = -1
+                print_y = 0
+                num = 0
+                jump_num = 0
+                fortsize = 24
+                cache_font = ImageFont.truetype(font=fontfile, size=fortsize)
+
+                textnum = 0
+                for text in card_message:
+                    if jump_num > 0:
+                        jump_num -= 1
+                    elif print_y > 2 and print_x >= 12:
+                        text = "…"
+                    else:
+                        if print_x == 11:
+                            text = "…"
+                        print_x += 1
+                        textnum += 1
+                        num += 1
+                        # 打印换行
+                        if num > 32 or text == "\n":
+                            num = 1
+                            print_y += 1.2
+                            print_x = 0
+                            if text == "\n":
+                                print_x = -1
+
+                        # 检测biliemoji
+                        emoji_code = ""
+                        if text == "[":
+                            testnum = 1
+                            while testnum <= 55:
+                                testnum += 1
+                                findnum = textnum + testnum
+                                if card_message[findnum] == "]":
+                                    emoji_code = "[" + card_message[textnum:findnum] + "]"
+                                    jump_num = len(emoji_code) - 1
+                                    testnum = 60
+                            if emoji_code != "":
+                                # 粘贴biliemoji
+                                for emoji_info in emoji_infos:
+                                    emoji_name = emoji_info["emoji_name"]
+                                    if emoji_name == emoji_code:
+                                        emoji_url = emoji_info["url"]
+                                        paste_image = connect_api("image", emoji_url)
+                                        paste_image = paste_image.resize((int(fortsize * 1.2), int(fortsize * 1.2)))
+                                        draw_image.paste(paste_image,
+                                                         (int(x + print_x * fortsize), int(y + print_y * fortsize)))
+                                        print_x += 0.5
+
+                        if emoji_code == "":
+                            # 检测是否半格字符
+                            if not is_emoji(text):
+                                # 打印文字
+                                draw.text(xy=(int(x + print_x * fortsize), int(y + print_y * fortsize)), text=text,
+                                          fill=(100, 100, 100), font=cache_font)
+                                if text in half_text:
+                                    print_x -= 0.4
+                            else:
+                                # 打印表情
+                                paste_image = get_emoji(font)
+                                paste_image = paste_image.resize((int(fortsize * 1.1), int(fortsize * 1.1)))
+                                draw_image.paste(paste_image,
+                                                 (int(x + print_x * fortsize), int(y + print_y * fortsize)))
+
+
+                returnpath = cachepath + 'bili动态/'
+                if not os.path.exists(returnpath):
+                    os.makedirs(returnpath)
+                returnpath = returnpath + date + '_' + timenow + '_' + random_num + '.png'
+                draw_image.save(returnpath)
+                logger.info("bili-push_draw_绘图成功")
+                code = 2
+
 
     except Exception as e:
         logger.error(f"获取消息出错，请讲此消息反馈给开发者。动态id：{dynamicid}")
@@ -2111,7 +2314,7 @@ get_new = on_command("最新动态", aliases={'添加订阅', '删除订阅', '�
 
 @get_new.handle()
 async def _(bot: Bot, messageevent: MessageEvent):
-    logger.info("bili_push_command_0.1.25")
+    logger.info("bili_push_command_0.1.26")
     returnpath = ""
     message = ""
     code = 0
@@ -2401,7 +2604,7 @@ minute = "*/" + waittime
 
 @scheduler.scheduled_job("cron", minute=minute, id="job_0")
 async def run_bili_push():
-    logger.info("bili_push_0.1.25")
+    logger.info("bili_push_0.1.26")
     # ############开始自动运行插件############
     now_maximum_send = maximum_send
     import time
