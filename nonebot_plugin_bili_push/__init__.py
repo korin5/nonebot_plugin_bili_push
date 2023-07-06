@@ -177,7 +177,6 @@ half_text = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N
              '"', "'", "！", " "]
 
 
-
 def get_file_path(file_name):
     """
     获取文件的路径信息，如果没下载就下载下来
@@ -341,26 +340,26 @@ def image_resize2(image, size: [int, int], overturn=False):
     if overturn:
         if w / h >= x / y:
             rex = w
-            rey = int(rex*y/x)
+            rey = int(rex * y / x)
             paste_image = image.resize((rex, rey))
             image_background.paste(paste_image, (0, 0))
         else:
             rey = h
-            rex = int(rey*x/y)
+            rex = int(rey * x / y)
             paste_image = image.resize((rex, rey))
             printx = int((w - rex) / 2)
             image_background.paste(paste_image, (printx, 0))
     else:
-        if w/h >= x/y:
+        if w / h >= x / y:
             rey = h
-            rex = int(rey*x/y)
+            rex = int(rey * x / y)
             paste_image = image.resize((rex, rey))
             printx = int((w - rex) / 2)
             printy = 0
             image_background.paste(paste_image, (printx, printy))
         else:
             rex = w
-            rey = int(rex*y/x)
+            rey = int(rex * y / x)
             paste_image = image.resize((rex, rey))
             printx = 0
             printy = int((h - rey) / 2)
@@ -390,7 +389,6 @@ def draw_text(text: str,
 
     :return: 图片文件（RGBA）
     """
-
 
     fortsize = size
     if use_api:
@@ -529,6 +527,7 @@ def get_draw(data, only_info: bool = False):
     dynamicid = str(data["desc"]["dynamic_id"])
     logger.info(f"bili-push_draw_开始获取数据-{dynamicid}")
     biliname = str(data["desc"]["user_profile"]["info"]["uname"])
+    uid = str(data["desc"]["uid"])
     biliface = str(data["desc"]["user_profile"]["info"]["face"])
     biliface_round = str(data["desc"]["user_profile"]["pendant"]["image"])
     dynamicid = str(data["desc"]["dynamic_id"])
@@ -554,18 +553,14 @@ def get_draw(data, only_info: bool = False):
         message_url = "bilibili.com/opus/" + dynamicid
         message_images = []
 
-        if only_info:
-            bilitype = 0
-
         # ### 绘制动态 #####################
 
         # 绘制名片
-        if bilitype == 0:
-            # 应该是改为这样就可以了，等验证完再优化
+        if only_info:
             try:
-                brief_introduction = biliname = data["desc"]["info"]["uname"]
+                brief_introduction = biliname = data["desc"]["card"]["official_verify"]["desc"]
             except Exception as e:
-                brief_introduction = biliname = data["desc"]["user_profile"]["card"]["desc"]
+                brief_introduction = uid
 
             fortsize = 30
             font = ImageFont.truetype(font=fontfile, size=fortsize)
@@ -1649,6 +1644,7 @@ def get_draw(data, only_info: bool = False):
                         x = 770
                         addimage = addimage.resize((x, y))
                         addimage = image_resize2(addimage, (x, y), overturn=True)
+                        h = y
                     image_y += h
                 elif imagelen == 2:
                     # 2图，图大小382
