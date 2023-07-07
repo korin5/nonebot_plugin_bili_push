@@ -83,6 +83,12 @@ config = nonebot.get_driver().config
 # 默认为5条，为0时不限制
 # bilipush_maximum_send=5
 #
+# 配置10：
+# 推送样式
+# 限制单次发送消息的数量，减小风控概率
+# 默认为5条，为0时不限制
+# bilipush_push_type="[绘图]"
+#
 
 # 配置1：
 try:
@@ -523,13 +529,12 @@ def get_draw(data, only_info: bool = False):
     run = True  # 代码折叠助手
     code = 0
     returnpath = ""
-
     dynamicid = str(data["desc"]["dynamic_id"])
     logger.info(f"bili-push_draw_开始获取数据-{dynamicid}")
-    biliname = str(data["desc"]["user_profile"]["info"]["uname"])
     uid = str(data["desc"]["uid"])
+    biliname = str(data["desc"]["user_profile"]["info"]["uname"])
     biliface = str(data["desc"]["user_profile"]["info"]["face"])
-    biliface_round = str(data["desc"]["user_profile"]["pendant"]["image"])
+    pendant = str(data["desc"]["user_profile"]["pendant"]["image"])
     dynamicid = str(data["desc"]["dynamic_id"])
     timestamp = str(data["desc"]["timestamp"])
     timestamp = int(timestamp)
@@ -553,6 +558,65 @@ def get_draw(data, only_info: bool = False):
         message_url = "bilibili.com/opus/" + dynamicid
         message_images = []
 
+        def draw_info():
+            vipStatus = data["desc"]["user_profile"]["vip"]["vipStatus"]
+            def draw_decorate_card():
+                decorate_card = data["desc"]["user_profile"]["decorate_card"]["card_url"]
+                card_type = data["desc"]["user_profile"]["decorate_card"]["card_type"]
+                is_fan = data["desc"]["user_profile"]["decorate_card"]["fan"]["is_fan"]
+                fan_number = data["desc"]["user_profile"]["decorate_card"]["fan"]["number"]
+                fan_color = data["desc"]["user_profile"]["decorate_card"]["fan"]["color"]
+                image = connect_api("image", decorate_card)
+                w, h = image.size
+                y = 87
+                x = int(y * w / h)
+                image = image.resize((x, y))
+                if is_fan:
+                    draw = ImageDraw.Draw(image)
+                    cache_fortsize = 36
+                    fontfile = get_file_path("腾祥嘉丽中圆.ttf")
+                    font = ImageFont.truetype(font=fontfile, size=cache_fortsize)
+                    draw.text(xy=(90, 25), text=str(fan_number), fill=fan_color, font=font)
+                return image
+            # 绘制头像名称等信息
+            image = Image.new("RGBA", (900, 230), (0, 0, 0, 0))
+            draw = ImageDraw.Draw(image)
+            x = 74
+            y = 76
+
+            # 开始往图片添加内容
+            # 添加头像底图
+            imageround = get_emoji("imageround")
+            imageround = imageround.resize((129, 129))
+            image.paste(imageround, (73, 73), mask=imageround)
+            # 添加头像
+            image_face = connect_api("image", biliface)
+            image_face = image_face.resize((125, 125))
+            imageround = imageround.resize((125, 125))
+            image.paste(image_face, (75, 75), mask=imageround)
+
+            # 添加装饰圈
+            paste_image = connect_api("image", pendant)
+            paste_image = paste_image.resize((228, 228))
+            image.paste(paste_image, (21, 26), mask=paste_image)
+
+            # 添加动态卡片
+            paste_image = draw_decorate_card()
+            image.paste(paste_image, (580, 78), mask=paste_image)
+
+            # 添加名字
+            cache_font = ImageFont.truetype(font=fontfile, size=35)
+            if vipStatus:
+                fill = (255, 85, 140)
+            else:
+                fill = (0, 0, 0)
+            draw.text(xy=(228, 90), text=biliname, fill=fill, font=cache_font)
+
+            # 添加日期
+            draw.text(xy=(230, 145), text=timestamp, fill=(100, 100, 100), font=font)
+
+            return image
+
         # ### 绘制动态 #####################
 
         # 绘制名片
@@ -568,18 +632,9 @@ def get_draw(data, only_info: bool = False):
             draw_image = new_background(900, 400)
             draw = ImageDraw.Draw(draw_image)
             # 开始往图片添加内容
-            # 添加头像
-            image_face = connect_api("image", biliface)
-            image_face = image_face.resize((125, 125))
-            imageround = get_emoji("imageround")
-            imageround = imageround.resize((129, 129))
-            draw_image.paste(imageround, (73, 73), mask=imageround)
-            imageround = imageround.resize((125, 125))
-            draw_image.paste(image_face, (75, 75), mask=imageround)
-
-            # 添加名字
-            cache_font = ImageFont.truetype(font=fontfile, size=35)
-            draw.text(xy=(230, 85), text=biliname, fill=(0, 0, 0), font=cache_font)
+            # 添加用户信息
+            image_info = draw_info()
+            draw_image.paste(image_info, (0, 0), mask=image_info)
 
             # 添加简介
             x = 75
@@ -656,22 +711,9 @@ def get_draw(data, only_info: bool = False):
                     draw_image = new_background(image_x, image_y)
                     draw = ImageDraw.Draw(draw_image)
                     # 开始往图片添加内容
-                    # 添加头像
-                    image_face = connect_api("image", biliface)
-                    image_face = image_face.resize((125, 125))
-                    imageround = get_emoji("imageround")
-                    imageround = imageround.resize((129, 129))
-                    draw_image.paste(imageround, (73, 73), mask=imageround)
-                    imageround = imageround.resize((125, 125))
-                    draw_image.paste(image_face, (75, 75), mask=imageround)
-
-                    # 添加名字
-                    cache_font = ImageFont.truetype(font=fontfile, size=35)
-                    draw.text(xy=(230, 85), text=biliname, fill=(0, 0, 0), font=cache_font)
-
-                    # 添加日期
-                    draw.text(xy=(230, 145), text=timestamp, fill=(100, 100, 100), font=font)
-
+                    # 添加用户信息
+                    image_info = draw_info()
+                    draw_image.paste(image_info, (0, 0), mask=image_info)
                     # 添加动态内容
                     x = 75
                     y = 230
@@ -987,22 +1029,10 @@ def get_draw(data, only_info: bool = False):
                     image_y = int(image_y)
                     draw_image = new_background(image_x, image_y)
                     draw = ImageDraw.Draw(draw_image)
-                    # 开始往图片添加内容
-                    # 添加头像
-                    image_face = connect_api("image", biliface)
-                    image_face = image_face.resize((125, 125))
-                    imageround = get_emoji("imageround")
-                    imageround = imageround.resize((129, 129))
-                    draw_image.paste(imageround, (73, 73), mask=imageround)
-                    imageround = imageround.resize((125, 125))
-                    draw_image.paste(image_face, (75, 75), mask=imageround)
 
-                    # 添加名字
-                    cache_font = ImageFont.truetype(font=fontfile, size=35)
-                    draw.text(xy=(230, 85), text=biliname, fill=(0, 0, 0), font=cache_font)
-
-                    # 添加日期
-                    draw.text(xy=(230, 145), text=timestamp, fill=(100, 100, 100), font=font)
+                    # 添加用户信息
+                    image_info = draw_info()
+                    draw_image.paste(image_info, (0, 0), mask=image_info)
 
                     # 添加动态内容
                     x = 75
@@ -1089,8 +1119,7 @@ def get_draw(data, only_info: bool = False):
                                 print_x = x
                                 print_y += 235 + 5
                             paste_image = connect_api("image", image)
-                            paste_image = image_resize2(image=paste_image, size=(235, 235),
-                                                        overturn=True)
+                            paste_image = image_resize2(image=paste_image, size=(235, 235), overturn=True)
                             paste_image = circle_corner(paste_image, 15)
                             draw_image.paste(paste_image, (int(print_x), int(print_y)), mask=paste_image)
                             print_x += 235 + 5
@@ -1155,22 +1184,9 @@ def get_draw(data, only_info: bool = False):
                     draw_image = new_background(image_x, image_y)
                     draw = ImageDraw.Draw(draw_image)
                     # 开始往图片添加内容
-                    # 添加头像
-                    image_face = connect_api("image", biliface)
-                    image_face = image_face.resize((125, 125))
-                    imageround = get_emoji("imageround")
-                    imageround = imageround.resize((129, 129))
-                    draw_image.paste(imageround, (73, 73), mask=imageround)
-                    imageround = imageround.resize((125, 125))
-                    draw_image.paste(image_face, (75, 75), mask=imageround)
-
-                    # 添加名字
-                    cache_font = ImageFont.truetype(font=fontfile, size=35)
-                    draw.text(xy=(230, 85), text=biliname, fill=(0, 0, 0), font=cache_font)
-
-                    # 添加日期
-                    draw.text(xy=(230, 145), text=timestamp, fill=(100, 100, 100), font=font)
-
+                    # 添加用户信息
+                    image_info = draw_info()
+                    draw_image.paste(image_info, (0, 0), mask=image_info)
                     # 添加动态内容
                     x = 75
                     y = 230
@@ -1277,22 +1293,9 @@ def get_draw(data, only_info: bool = False):
                     draw_image = new_background(image_x, image_y)
                     draw = ImageDraw.Draw(draw_image)
                     # 开始往图片添加内容
-                    # 添加头像
-                    image_face = connect_api("image", biliface)
-                    image_face = image_face.resize((125, 125))
-                    imageround = get_emoji("imageround")
-                    imageround = imageround.resize((129, 129))
-                    draw_image.paste(imageround, (73, 73), mask=imageround)
-                    imageround = imageround.resize((125, 125))
-                    draw_image.paste(image_face, (75, 75), mask=imageround)
-
-                    # 添加名字
-                    cache_font = ImageFont.truetype(font=fontfile, size=35)
-                    draw.text(xy=(230, 85), text=biliname, fill=(0, 0, 0), font=cache_font)
-
-                    # 添加日期
-                    draw.text(xy=(230, 145), text=timestamp, fill=(100, 100, 100), font=font)
-
+                    # 添加用户信息
+                    image_info = draw_info()
+                    draw_image.paste(image_info, (0, 0), mask=image_info)
                     # 添加动态内容
                     x = 75
                     y = 230
@@ -1419,22 +1422,9 @@ def get_draw(data, only_info: bool = False):
                     draw_image = new_background(image_x, image_y)
                     draw = ImageDraw.Draw(draw_image)
                     # 开始往图片添加内容
-                    # 添加头像
-                    image_face = connect_api("image", biliface)
-                    image_face = image_face.resize((125, 125))
-                    imageround = get_emoji("imageround")
-                    imageround = imageround.resize((129, 129))
-                    draw_image.paste(imageround, (73, 73), mask=imageround)
-                    imageround = imageround.resize((125, 125))
-                    draw_image.paste(image_face, (75, 75), mask=imageround)
-
-                    # 添加名字
-                    cache_font = ImageFont.truetype(font=fontfile, size=35)
-                    draw.text(xy=(230, 85), text=biliname, fill=(0, 0, 0), font=cache_font)
-
-                    # 添加日期
-                    draw.text(xy=(230, 145), text=timestamp, fill=(100, 100, 100), font=font)
-
+                    # 添加用户信息
+                    image_info = draw_info()
+                    draw_image.paste(image_info, (0, 0), mask=image_info)
                     # 添加动态内容
                     x = 75
                     y = 230
@@ -1525,22 +1515,9 @@ def get_draw(data, only_info: bool = False):
                     draw_image = new_background(image_x, image_y)
                     draw = ImageDraw.Draw(draw_image)
                     # 开始往图片添加内容
-                    # 添加头像
-                    image_face = connect_api("image", biliface)
-                    image_face = image_face.resize((125, 125))
-                    imageround = get_emoji("imageround")
-                    imageround = imageround.resize((129, 129))
-                    draw_image.paste(imageround, (73, 73), mask=imageround)
-                    imageround = imageround.resize((125, 125))
-                    draw_image.paste(image_face, (75, 75), mask=imageround)
-
-                    # 添加名字
-                    cache_font = ImageFont.truetype(font=fontfile, size=35)
-                    draw.text(xy=(230, 85), text=biliname, fill=(0, 0, 0), font=cache_font)
-
-                    # 添加日期
-                    draw.text(xy=(230, 145), text=timestamp, fill=(100, 100, 100), font=font)
-
+                    # 添加用户信息
+                    image_info = draw_info()
+                    draw_image.paste(image_info, (0, 0), mask=image_info)
                     # 添加动态内容
                     x = 75
                     y = 230
@@ -1665,21 +1642,9 @@ def get_draw(data, only_info: bool = False):
                 draw_image = new_background(image_x, image_y)
                 draw = ImageDraw.Draw(draw_image)
                 # 开始往图片添加内容
-                # 添加头像
-                image_face = connect_api("image", biliface)
-                image_face = image_face.resize((125, 125))
-                imageround = get_emoji("imageround")
-                imageround = imageround.resize((129, 129))
-                draw_image.paste(imageround, (73, 73), mask=imageround)
-                imageround = imageround.resize((125, 125))
-                draw_image.paste(image_face, (75, 75), mask=imageround)
-
-                # 添加名字
-                cache_font = ImageFont.truetype(font=fontfile, size=35)
-                draw.text(xy=(230, 85), text=biliname, fill=(0, 0, 0), font=cache_font)
-
-                # 添加日期
-                draw.text(xy=(230, 145), text=timestamp, fill=(100, 100, 100), font=font)
+                # 添加用户信息
+                image_info = draw_info()
+                draw_image.paste(image_info, (0, 0), mask=image_info)
 
                 # 添加动态内容
                 x = 75
@@ -1773,21 +1738,9 @@ def get_draw(data, only_info: bool = False):
                 draw_image = new_background(image_x, image_y)
                 draw = ImageDraw.Draw(draw_image)
                 # 开始往图片添加内容
-                # 添加头像
-                image_face = connect_api("image", biliface)
-                image_face = image_face.resize((125, 125))
-                imageround = get_emoji("imageround")
-                imageround = imageround.resize((129, 129))
-                draw_image.paste(imageround, (73, 73), mask=imageround)
-                imageround = imageround.resize((125, 125))
-                draw_image.paste(image_face, (75, 75), mask=imageround)
-
-                # 添加名字
-                cache_font = ImageFont.truetype(font=fontfile, size=35)
-                draw.text(xy=(230, 85), text=biliname, fill=(0, 0, 0), font=cache_font)
-
-                # 添加日期
-                draw.text(xy=(230, 145), text=timestamp, fill=(100, 100, 100), font=font)
+                # 添加用户信息
+                image_info = draw_info()
+                draw_image.paste(image_info, (0, 0), mask=image_info)
 
                 # 添加动态内容
                 x = 75
@@ -1841,21 +1794,9 @@ def get_draw(data, only_info: bool = False):
                 draw = ImageDraw.Draw(draw_image)
 
                 # 开始往图片添加内容
-                # 添加头像
-                image_face = connect_api("image", biliface)
-                image_face = image_face.resize((125, 125))
-                imageround = get_emoji("imageround")
-                imageround = imageround.resize((129, 129))
-                draw_image.paste(imageround, (73, 73), mask=imageround)
-                imageround = imageround.resize((125, 125))
-                draw_image.paste(image_face, (75, 75), mask=imageround)
-
-                # 添加名字
-                cache_font = ImageFont.truetype(font=fontfile, size=35)
-                draw.text(xy=(230, 85), text=biliname, fill=(0, 0, 0), font=cache_font)
-
-                # 添加日期
-                draw.text(xy=(230, 145), text=timestamp, fill=(100, 100, 100), font=font)
+                # 添加用户信息
+                image_info = draw_info()
+                draw_image.paste(image_info, (0, 0), mask=image_info)
 
                 # 添加动态内容
                 x = 75
@@ -2106,21 +2047,9 @@ def get_draw(data, only_info: bool = False):
                 draw = ImageDraw.Draw(draw_image)
 
                 # 开始往图片添加内容
-                # 添加头像
-                image_face = connect_api("image", biliface)
-                image_face = image_face.resize((125, 125))
-                imageround = get_emoji("imageround")
-                imageround = imageround.resize((129, 129))
-                draw_image.paste(imageround, (73, 73), mask=imageround)
-                imageround = imageround.resize((125, 125))
-                draw_image.paste(image_face, (75, 75), mask=imageround)
-
-                # 添加名字
-                cache_font = ImageFont.truetype(font=fontfile, size=35)
-                draw.text(xy=(230, 85), text=biliname, fill=(0, 0, 0), font=cache_font)
-
-                # 添加日期
-                draw.text(xy=(230, 145), text=timestamp, fill=(100, 100, 100), font=font)
+                # 添加用户信息
+                image_info = draw_info()
+                draw_image.paste(image_info, (0, 0), mask=image_info)
 
                 x = 75
                 y = 246
@@ -2276,6 +2205,55 @@ def get_draw(data, only_info: bool = False):
                                 draw_image.paste(paste_image,
                                                  (int(x + print_x * fortsize), int(y + print_y * fortsize)))
 
+                returnpath = cachepath + 'bili动态/'
+                if not os.path.exists(returnpath):
+                    os.makedirs(returnpath)
+                returnpath = returnpath + date + '_' + timenow + '_' + random_num + '.png'
+                draw_image.save(returnpath)
+                logger.info("bili-push_draw_绘图成功")
+                code = 2
+
+        else:
+            logger.error("不支持的动态类型")
+            if run:
+                message_title = biliname + "发布了动态"
+                message_body = "[不支持的动态类型]"
+                if len(message_body) > 80:
+                    message_body = message_body[0:79] + "……"
+            logger.info("bili-push_开始绘图")
+            if run:
+                logger.info("bili-push_开始绘图")
+                fortsize = 30
+                font = ImageFont.truetype(font=fontfile, size=fortsize)
+
+                # 计算图片长度
+                image_x = 900
+                image_y = 140  # add base y
+                image_y += 125 + 35  # add hear and space
+                paste_image = draw_text("暂不支持的动态类型",
+                                        size=30,
+                                        textlen=24,
+                                        biliemoji_infos=emoji_infos,
+                                        calculate=True)
+                w, h = paste_image.size
+                image_y += h
+
+                image_x = int(image_x)
+                image_y = int(image_y)
+                draw_image = new_background(image_x, image_y)
+                draw = ImageDraw.Draw(draw_image)
+                # 开始往图片添加内容
+                # 添加用户信息
+                image_info = draw_info()
+                draw_image.paste(image_info, (0, 0), mask=image_info)
+                # 添加动态内容
+                x = 75
+                y = 230
+                paste_image = draw_text("[不支持动态类型]",
+                                        size=30,
+                                        textlen=24,
+                                        biliemoji_infos=emoji_infos)
+                draw_image.paste(paste_image, (x, y), mask=paste_image)
 
                 returnpath = cachepath + 'bili动态/'
                 if not os.path.exists(returnpath):
