@@ -99,7 +99,7 @@ config = nonebot.get_driver().config
 # 配置11：
 # Debug
 # 显示数据进行debug，默认关闭
-# bilipush_push_style="[绘制][标题][链接]"
+# bilipush_push_style="[绘图][标题][链接]"
 #
 
 # 配置1：
@@ -175,7 +175,7 @@ except Exception as e:
 try:
     push_style = config.bilipush_push_style
     if push_style == "":
-        push_style = "[绘制][标题][链接]"
+        push_style = "[绘图][标题][链接]"
     else:
         # 检查配置是否正确
         try:
@@ -191,15 +191,15 @@ try:
             while num > 0:
                 num -= 1
                 if cache_push_style.startswith("[绘图]"):
-                    cache_push_style = cache_push_style.removeprefix("[标题]")
+                    cache_push_style = cache_push_style.removeprefix("[绘图]")
                 elif cache_push_style.startswith("[标题]"):
                     cache_push_style = cache_push_style.removeprefix("[标题]")
                 elif cache_push_style.startswith("[链接]"):
-                    cache_push_style = cache_push_style.removeprefix("[标题]")
+                    cache_push_style = cache_push_style.removeprefix("[链接]")
                 elif cache_push_style.startswith("[内容]"):
-                    cache_push_style = cache_push_style.removeprefix("[标题]")
+                    cache_push_style = cache_push_style.removeprefix("[内容]")
                 elif cache_push_style.startswith("[图片]"):
-                    cache_push_style = cache_push_style.removeprefix("[标题]")
+                    cache_push_style = cache_push_style.removeprefix("[图片]")
                 elif cache_push_style == "":
                     num = 0
                 else:
@@ -207,11 +207,11 @@ try:
             if cache_push_style != "":
                 logger.error("读取动态推送样式出错，请检查配置是否正确")
                 logger.error("正在读取默认配置")
-                push_style = "[绘制][标题][链接]"
+                push_style = "[绘图][标题][链接]"
         except Exception as e:
             logger.error("读取动态推送样式出错，请检查配置是否正确")
 except Exception as e:
-    push_style = "[绘制][标题][链接]"
+    push_style = "[绘图][标题][链接]"
 
 # 插件元信息，让nonebot读取到这个插件是干嘛的
 __plugin_meta__ = PluginMetadata(
@@ -2348,7 +2348,7 @@ get_new = on_command("最新动态", aliases={'添加订阅', '删除订阅', '�
 
 @get_new.handle()
 async def _(bot: Bot, messageevent: MessageEvent):
-    logger.info("bili_push_command_0.1.27")
+    logger.info("bili_push_command_0.1.28")
     returnpath = ""
     message = ""
     code = 0
@@ -2462,8 +2462,52 @@ async def _(bot: Bot, messageevent: MessageEvent):
                     code = 1
                     message = "不支持动态类型"
                 else:
+                    dynamicid = str(returnjson["data"]["cards"][0]["desc"]["dynamic_id"])
                     returnpath = draw_info["draw_path"]
-                    code = 2
+
+                    message_title = draw_info["message_title"]
+                    message_url = draw_info["message_url"]
+                    message_body = draw_info["message_body"]
+                    message_images = str(draw_info["message_images"])
+                    message_images = message_images.replace("'", '"')
+                    message_images = json.loads(message_images)["images"]
+
+                    num = 10
+                    cache_push_style = push_style
+                    msg = MessageSegment.text("")
+                    while num > 0:
+                        num -= 1
+                        if cache_push_style.startswith("[绘图]"):
+                            cache_msg = MessageSegment.image(r"file:///" + returnpath)
+                            msg += cache_msg
+                            cache_push_style = cache_push_style.removeprefix("[绘图]")
+                        elif cache_push_style.startswith("[标题]"):
+                            cache_msg = MessageSegment.text(message_title)
+                            msg += cache_msg
+                            cache_push_style = cache_push_style.removeprefix("[标题]")
+                        elif cache_push_style.startswith("[链接]"):
+                            cache_msg = MessageSegment.text(message_url)
+                            msg += cache_msg
+                            cache_push_style = cache_push_style.removeprefix("[链接]")
+                        elif cache_push_style.startswith("[内容]"):
+                            cache_msg = MessageSegment.text(message_body)
+                            msg += cache_msg
+                            cache_push_style = cache_push_style.removeprefix("[内容]")
+                        elif cache_push_style.startswith("[图片]"):
+                            num = 0
+                            for url in message_images:
+                                num += 1
+                                image = connect_api("image", url)
+                                image_path = cachepath + dynamicid + "/" + str(num) + ".png"
+                                image.save(image_path)
+                                cache_msg = MessageSegment.image(r"file:///" + image_path)
+                                msg += cache_msg
+                            cache_push_style = cache_push_style.removeprefix("[图片]")
+                        elif cache_push_style == "":
+                            num = 0
+                        else:
+                            logger.error("读取动态推送样式出错，请检查配置是否正确")
+                    code = 4
             else:
                 logger.info('returncode!=0')
                 code = 1
@@ -2630,6 +2674,8 @@ async def _(bot: Bot, messageevent: MessageEvent):
         msg2 = MessageSegment.text(message)
         msg = msg1 + msg2
         await get_new.finish(msg)
+    elif code == 4:
+        await get_new.finish(msg)
     else:
         await get_new.finish()
 
@@ -2638,7 +2684,7 @@ minute = "*/" + waittime
 
 @scheduler.scheduled_job("cron", minute=minute, id="job_0")
 async def run_bili_push():
-    logger.info("bili_push_0.1.27")
+    logger.info("bili_push_0.1.28")
     # ############开始自动运行插件############
     now_maximum_send = maximum_send
     import time
@@ -3027,7 +3073,6 @@ async def run_bili_push():
                                 new_push = False
                                 pushed_state = pushed_datas[1]
                             if state != pushed_state:
-
                                 # 推送直播消息，并保存为已推送
                                 conn = sqlite3.connect(livedb)
                                 cursor = conn.cursor()
@@ -3044,9 +3089,36 @@ async def run_bili_push():
                                     message_title = data[4]
 
                                     if state == "1":
-                                        msg1 = MessageSegment.image(r"file:///" + returnpath)
-                                        msg2 = MessageSegment.text(biliname + "已开播\n" + message_title)
-                                        msg = msg1 + msg2
+                                        num = 10
+                                        cache_push_style = push_style
+                                        msg = MessageSegment.text("")
+                                        while num > 0:
+                                            num -= 1
+                                            if cache_push_style.startswith("[绘图]"):
+                                                cache_msg = MessageSegment.image(r"file:///" + returnpath)
+                                                msg += cache_msg
+                                                cache_push_style = cache_push_style.removeprefix("[绘图]")
+                                            elif cache_push_style.startswith("[标题]"):
+                                                text = biliname + "正在直播："
+                                                cache_msg = MessageSegment.text(text)
+                                                msg += cache_msg
+                                                cache_push_style = cache_push_style.removeprefix("[标题]")
+                                            elif cache_push_style.startswith("[链接]"):
+                                                cache_msg = MessageSegment.text("message_url")
+                                                msg += cache_msg
+                                                cache_push_style = cache_push_style.removeprefix("[链接]")
+                                            elif cache_push_style.startswith("[内容]"):
+                                                cache_msg = MessageSegment.text(message_title)
+                                                msg += cache_msg
+                                                cache_push_style = cache_push_style.removeprefix("[内容]")
+                                            elif cache_push_style.startswith("[图片]"):
+
+                                                cache_push_style = cache_push_style.removeprefix("[图片]")
+                                            elif cache_push_style == "":
+                                                num = 0
+                                            else:
+                                                logger.error("读取动态推送样式出错，请检查配置是否正确")
+
                                     else:
                                         msg = MessageSegment.text(biliname + "已下播")
 
@@ -3273,8 +3345,50 @@ async def run_bili_push():
                             conn.commit()
                             conn.close()
 
-                            returnpath = data[2]
-                            msg = MessageSegment.image(r"file:///" + returnpath)
+                            draw_path = data[2]
+                            message_title = data[3]
+                            message_url = data[4]
+                            message_body = data[5]
+                            message_images = str(data[6])
+                            message_images = message_images.replace("'", '"')
+                            message_images = json.loads(message_images)["images"]
+
+                            num = 10
+                            cache_push_style = push_style
+                            msg = MessageSegment.text("")
+                            while num > 0:
+                                num -= 1
+                                if cache_push_style.startswith("[绘图]"):
+                                    cache_msg = MessageSegment.image(r"file:///" + draw_path)
+                                    msg += cache_msg
+                                    cache_push_style = cache_push_style.removeprefix("[绘图]")
+                                elif cache_push_style.startswith("[标题]"):
+                                    cache_msg = MessageSegment.text(message_title)
+                                    msg += cache_msg
+                                    cache_push_style = cache_push_style.removeprefix("[标题]")
+                                elif cache_push_style.startswith("[链接]"):
+                                    cache_msg = MessageSegment.text(message_url)
+                                    msg += cache_msg
+                                    cache_push_style = cache_push_style.removeprefix("[链接]")
+                                elif cache_push_style.startswith("[内容]"):
+                                    cache_msg = MessageSegment.text(message_body)
+                                    msg += cache_msg
+                                    cache_push_style = cache_push_style.removeprefix("[内容]")
+                                elif cache_push_style.startswith("[图片]"):
+                                    num = 0
+                                    for url in message_images:
+                                        num += 1
+                                        image = connect_api("image", url)
+                                        image_path = cachepath + dynamicid + "/" + str(num) + ".png"
+                                        image.save(image_path)
+                                        cache_msg = MessageSegment.image(r"file:///" + image_path)
+                                        msg += cache_msg
+                                    cache_push_style = cache_push_style.removeprefix("[图片]")
+                                elif cache_push_style == "":
+                                    num = 0
+                                else:
+                                    logger.error("读取动态推送样式出错，请检查配置是否正确")
+
                             stime = random.randint(1, 200) / 10 + sleeptime
                             if "p" in groupcode:
                                 send_qq = groupcode.removeprefix("gp")
@@ -3291,8 +3405,8 @@ async def run_bili_push():
                                         conn.close()
                                         logger.info("发送私聊成功")
                                     except Exception as e:
-                                        logger.info('私聊内容发送失败：send_qq：' + str(send_qq) + ",message:"
-                                              + message + ",retrnpath:" + returnpath)
+                                        logger.error('私聊内容发送失败：send_qq：' + str(send_qq) + ",message:"
+                                              + message + ",retrnpath:" + draw_path)
                                     time.sleep(stime)
                                 else:
                                     logger.info("bot未入群")
@@ -3314,9 +3428,9 @@ async def run_bili_push():
                                         conn.close()
                                         logger.info("发送群聊成功")
                                     except Exception as e:
-                                        logger.info(
+                                        logger.error(
                                             '群聊内容发送失败：groupcode：' + str(send_groupcode) + ",message:"
-                                            + message + ",retrnpath:" + returnpath)
+                                            + message + ",retrnpath:" + draw_path)
                                     time.sleep(stime)
                                 else:
                                     logger.info("bot未入群")
