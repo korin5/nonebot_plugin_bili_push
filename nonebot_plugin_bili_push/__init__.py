@@ -1,3 +1,5 @@
+import shutil
+
 from nonebot.adapters.onebot.v11 import Bot, MessageEvent, GroupMessageEvent, MessageSegment
 from nonebot.adapters.onebot.v11 import GROUP_ADMIN, GROUP_OWNER
 from nonebot import require, on_command, logger
@@ -24,11 +26,17 @@ def connect_api(type: str, url: str, post_json=None, file_path: str = None):
         else:
             return json.loads(requests.post(url, json=post_json).text)
     elif type == "image":
-        # image = connect_api("image", url)
         return Image.open(BytesIO(requests.get(url).content))
     elif type == "file":
-        with open(file_path, "wb") as f, requests.get(url) as res:
-            f.write(res.content)
+        cache_file_path = file_path + "cache"
+        try:
+            with open(cache_file_path, "wb") as f, requests.get(url) as res:
+                f.write(res.content)
+            logger.info("下载完成")
+            shutil.copyfile(cache_file_path, file_path)
+            os.remove(cache_file_path)
+        except Exception as e:
+            logger.error(f"文件下载出错-{file_path}")
     return
 
 config = nonebot.get_driver().config
@@ -84,10 +92,14 @@ config = nonebot.get_driver().config
 # bilipush_maximum_send=5
 #
 # 配置10：
-# 推送样式
-# 限制单次发送消息的数量，减小风控概率
-# 默认为5条，为0时不限制
-# bilipush_push_type="[绘图]"
+# Debug
+# 显示数据进行debug，默认关闭
+# bilipush_debug=True
+#
+# 配置11：
+# Debug
+# 显示数据进行debug，默认关闭
+# bilipush_push_style="[绘制][标题][链接]"
 #
 
 # 配置1：
@@ -154,6 +166,52 @@ try:
         maximum_send = 99
 except Exception as e:
     maximum_send = 5
+# 配置10：
+try:
+    debug_log = config.bilipush_debug
+except Exception as e:
+    debug_log = False
+# 配置11：
+try:
+    push_style = config.bilipush_push_style
+    if push_style == "":
+        push_style = "[绘制][标题][链接]"
+    else:
+        # 检查配置是否正确
+        try:
+            # 替换同义符号
+            push_style = push_style.replace("【", "[")
+            push_style = push_style.replace("】", "]")
+            push_style = push_style.replace("（", "[")
+            push_style = push_style.replace("）", "]")
+            push_style = push_style.replace("{", "[")
+            push_style = push_style.replace("}", "]")
+            cache_push_style = push_style
+            num = 10
+            while num > 0:
+                num -= 1
+                if cache_push_style.startswith("[绘图]"):
+                    cache_push_style = cache_push_style.removeprefix("[标题]")
+                elif cache_push_style.startswith("[标题]"):
+                    cache_push_style = cache_push_style.removeprefix("[标题]")
+                elif cache_push_style.startswith("[链接]"):
+                    cache_push_style = cache_push_style.removeprefix("[标题]")
+                elif cache_push_style.startswith("[内容]"):
+                    cache_push_style = cache_push_style.removeprefix("[标题]")
+                elif cache_push_style.startswith("[图片]"):
+                    cache_push_style = cache_push_style.removeprefix("[标题]")
+                elif cache_push_style == "":
+                    num = 0
+                else:
+                    logger.error("读取动态推送样式出错，请检查配置是否正确")
+            if cache_push_style != "":
+                logger.error("读取动态推送样式出错，请检查配置是否正确")
+                logger.error("正在读取默认配置")
+                push_style = "[绘制][标题][链接]"
+        except Exception as e:
+            logger.error("读取动态推送样式出错，请检查配置是否正确")
+except Exception as e:
+    push_style = "[绘制][标题][链接]"
 
 # 插件元信息，让nonebot读取到这个插件是干嘛的
 __plugin_meta__ = PluginMetadata(
@@ -510,6 +568,8 @@ def draw_text(text: str,
 
 
 def get_draw(data, only_info: bool = False):
+    if debug_log:
+        logger.debug("data" + str(data))
     import time
     date = str(time.strftime("%Y-%m-%d", time.localtime()))
     date_year = str(time.strftime("%Y", time.localtime()))
@@ -596,13 +656,15 @@ def get_draw(data, only_info: bool = False):
             image.paste(image_face, (75, 75), mask=imageround)
 
             # 添加装饰圈
-            paste_image = connect_api("image", pendant)
-            paste_image = paste_image.resize((228, 228))
-            image.paste(paste_image, (21, 26), mask=paste_image)
+            if pendant != "":
+                paste_image = connect_api("image", pendant)
+                paste_image = paste_image.resize((228, 228))
+                image.paste(paste_image, (21, 26), mask=paste_image)
 
             # 添加动态卡片
-            paste_image = draw_decorate_card()
-            image.paste(paste_image, (580, 78), mask=paste_image)
+            if "decorate_card" in list(data["desc"]["user_profile"]):
+                paste_image = draw_decorate_card()
+                image.paste(paste_image, (580, 78), mask=paste_image)
 
             # 添加名字
             cache_font = ImageFont.truetype(font=fontfile, size=35)
@@ -618,7 +680,6 @@ def get_draw(data, only_info: bool = False):
             return image
 
         # ### 绘制动态 #####################
-
         # 绘制名片
         if only_info:
             try:
@@ -1673,7 +1734,6 @@ def get_draw(data, only_info: bool = False):
                         if print_x >= 2:
                             print_x = 0
                             print_y += 1
-
                         paste_image = connect_api("image", image)
                         paste_image = image_resize2(image=paste_image, size=(382, 382), overturn=True)
                         paste_image = circle_corner(paste_image, 15)
@@ -2288,7 +2348,7 @@ get_new = on_command("最新动态", aliases={'添加订阅', '删除订阅', '�
 
 @get_new.handle()
 async def _(bot: Bot, messageevent: MessageEvent):
-    logger.info("bili_push_command_0.1.26.2")
+    logger.info("bili_push_command_0.1.27")
     returnpath = ""
     message = ""
     code = 0
@@ -2578,7 +2638,7 @@ minute = "*/" + waittime
 
 @scheduler.scheduled_job("cron", minute=minute, id="job_0")
 async def run_bili_push():
-    logger.info("bili_push_0.1.26.2")
+    logger.info("bili_push_0.1.27")
     # ############开始自动运行插件############
     now_maximum_send = maximum_send
     import time
