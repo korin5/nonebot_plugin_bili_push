@@ -364,34 +364,6 @@ def new_background(image_x: int, image_y: int):
                     (paste_x, paste_y, paste_x + image_paste.width, paste_y + image_paste.height),
                     mask=image_paste)
 
-    # 添加贴图
-    # filepath = imagepath + 'config/背景图片.png'
-    # image_paste = Image.open(filepath, mode="r")
-    # filepath = str(imagepath + 'mask.png')
-    # mask_image = Image.open(filepath, mode="r")
-    # mask_image = mask_image.resize((800, 800))
-    # image_x2 = image_x
-    # image_y2 = image_y
-    # numx = 1
-    # while image_x2 >= 800:
-    #     numx += 1
-    #     image_x2 -= 800
-    # numy = 1
-    # while image_y2 >= 800:
-    #     numy += 1
-    #     image_y2 -= 800
-    # printx = 0
-    # while numx >= 1:
-    #     numx -= 1
-    #     printy = 0
-    #     numy2 = numy
-    #     while numy2 >= 1:
-    #         numy2 -= 1
-    #         new_image.paste(image_paste, (printx, printy, printx + 800, printy + 800), mask=mask_image)
-    #         new_image.paste(image_paste, (printx, printy, printx + 800, printy + 800), mask=mask_image)
-    #         printy += 800
-    #     printx += 800
-
     return new_image
 
 
@@ -2872,12 +2844,12 @@ async def run_bili_push():
                         for uid in livedata_list:
                             logger.info("bili_live_开始获取消息:" + str(uid))
                             livedata = livedatas[uid]
-                            live_status = livedata["live_status"]
+                            live_status = str(livedata["live_status"])
 
                             cursor.execute("SELECT * FROM livelist2 WHERE uid='" + str(uid) + "'")
                             data_db = cursor.fetchone()
 
-                            if data_db is None or live_status != data_db[1]:
+                            if data_db is None or live_status != str(data_db[1]):
                                 uname = livedata["uname"]
                                 face = livedata["face"]
                                 cover_from_user = livedata["cover_from_user"]
@@ -2891,7 +2863,7 @@ async def run_bili_push():
 
                                 online = livedata["online"]
 
-                                if live_status != 0:
+                                if live_status == "1":
                                     logger.info("live开始绘图")
                                     draw_image = new_background(900, 800)
                                     draw = ImageDraw.Draw(draw_image)
@@ -3095,6 +3067,7 @@ async def run_bili_push():
                                     biliname = data[3]
                                     message_title = data[4]
 
+                                    # 0下播 1直播 2轮播
                                     if state == "1":
                                         num = 10
                                         cache_push_style = push_style
@@ -3125,7 +3098,6 @@ async def run_bili_push():
                                                 num = 0
                                             else:
                                                 logger.error("读取动态推送样式出错，请检查配置是否正确")
-
                                     else:
                                         msg = MessageSegment.text(biliname + "已下播")
 
