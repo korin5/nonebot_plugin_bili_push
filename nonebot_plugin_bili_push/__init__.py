@@ -97,9 +97,8 @@ config = nonebot.get_driver().config
 # bilipush_debug=True
 #
 # 配置11：
-# Debug
-# 显示数据进行debug，默认关闭
-# bilipush_push_style="[绘图][标题][链接]"
+# 推送样式配置
+# bilipush_push_style="[绘图][标题][链接][内容][图片]"
 #
 
 # 配置1：
@@ -2882,6 +2881,7 @@ async def run_bili_push():
                                 uname = livedata["uname"]
                                 face = livedata["face"]
                                 cover_from_user = livedata["cover_from_user"]
+                                keyframe = livedata["keyframe"]
                                 live_title = livedata["title"]
                                 room_id = livedata["room_id"]
 
@@ -2920,10 +2920,17 @@ async def run_bili_push():
                                     draw.text(xy=(75, 270), text=live_title, fill=(0, 0, 0), font=font)
 
                                     # 添加封面
-                                    paste_image = connect_api("image", cover_from_user)
-                                    paste_image = paste_image.resize((772, 434))
-                                    paste_image = circle_corner(paste_image, 15)
-                                    draw_image.paste(paste_image, (75, 330))
+                                    if cover_from_user != "":
+                                        paste_image = connect_api("image", cover_from_user)
+                                        paste_image = paste_image.resize((772, 434))
+                                        paste_image = circle_corner(paste_image, 15)
+                                        draw_image.paste(paste_image, (75, 330))
+                                    else:
+                                        if keyframe != "":
+                                            paste_image = connect_api("image", keyframe)
+                                            paste_image = paste_image.resize((772, 434))
+                                            paste_image = circle_corner(paste_image, 15)
+                                            draw_image.paste(paste_image, (75, 330))
 
                                     returnpath = os.path.abspath('.') + '/cache/bili动态/'
                                     if not os.path.exists(returnpath):
