@@ -591,6 +591,7 @@ def get_draw(data, only_info: bool = False):
 
         def draw_info():
             vipStatus = data["desc"]["user_profile"]["vip"]["vipStatus"]
+
             def draw_decorate_card():
                 decorate_card = data["desc"]["user_profile"]["decorate_card"]["card_url"]
                 card_type = data["desc"]["user_profile"]["decorate_card"]["card_type"]
@@ -602,12 +603,19 @@ def get_draw(data, only_info: bool = False):
                 y = 87
                 x = int(y * w / h)
                 image = image.resize((x, y))
-                if is_fan:
+                if is_fan == 1:
                     draw = ImageDraw.Draw(image)
                     cache_fortsize = 36
-                    fontfile = get_file_path("腾祥嘉丽中圆.ttf")
+                    fontfile = get_file_path("farout2.ttf")
                     font = ImageFont.truetype(font=fontfile, size=cache_fortsize)
-                    draw.text(xy=(90, 25), text=str(fan_number), fill=fan_color, font=font)
+                    fan_number = str(fan_number)
+                    while len(fan_number) < 6:
+                        fan_number = "0" + fan_number
+                    draw.text(xy=(90, 25), text=fan_number, fill=fan_color, font=font)
+                else:
+                    paste_image = image
+                    image = Image.new("RGBA", (x + 50, y), (0, 0, 0, 0))
+                    image.paste(paste_image, (50, 0), mask=paste_image)
                 return image
             # 绘制头像名称等信息
             image = Image.new("RGBA", (900, 230), (0, 0, 0, 0))
@@ -2318,8 +2326,8 @@ get_new = on_command("最新动态", aliases={'添加订阅', '删除订阅', '�
 
 
 @get_new.handle()
-async def _(bot: Bot, messageevent: MessageEvent):
-    logger.info("bili_push_command_0.1.28")
+async def bili_push_command(bot: Bot, messageevent: MessageEvent):
+    logger.info("bili_push_command_0.1.30")
     returnpath = ""
     message = ""
     code = 0
@@ -2655,7 +2663,7 @@ minute = "*/" + waittime
 
 @scheduler.scheduled_job("cron", minute=minute, id="job_0")
 async def run_bili_push():
-    logger.info("bili_push_0.1.28")
+    logger.info("bili_push_0.1.30")
     # ############开始自动运行插件############
     now_maximum_send = maximum_send
     import time
@@ -2711,10 +2719,10 @@ async def run_bili_push():
                 datas = cursor.fetchall()
                 for data in datas:
                     cursor.execute(f'replace into subscriptionlist2 ("groupcode","uid") values("{data[1]}",{data[2]})')
-        if "livelist2" not in tables:
+        if "livelist3" not in tables:
             # 如未创建，则创建
-            cursor.execute('create table livelist2(uid varchar(10) primary key, '
-                           'state varchar(10), draw varchar(10), username varchar(10), message_title varchar(10))')
+            cursor.execute('create table livelist3(uid varchar(10) primary key, state varchar(10), '
+                           'draw varchar(10), username varchar(10), message_title varchar(10), room_id varchar(10))')
         if "wait_push2" not in tables:
             cursor.execute(
                 "create table 'wait_push2' (dynamicid int(10) primary key, uid varchar(10), "
@@ -2846,7 +2854,7 @@ async def run_bili_push():
                             livedata = livedatas[uid]
                             live_status = str(livedata["live_status"])
 
-                            cursor.execute("SELECT * FROM livelist2 WHERE uid='" + str(uid) + "'")
+                            cursor.execute("SELECT * FROM livelist3 WHERE uid='" + str(uid) + "'")
                             data_db = cursor.fetchone()
 
                             if data_db is None or live_status != str(data_db[1]):
@@ -2913,13 +2921,13 @@ async def run_bili_push():
 
                                     # 写入数据
                                     cursor.execute(
-                                        f'replace into livelist2 (uid, state, draw, username, message_title) values'
+                                        f'replace into livelist3 (uid, state, draw, username, message_title) values'
                                         f'("{uid}","{live_status}","{returnpath}","{uname}","{live_title}")')
 
                                 elif live_status == 0:
                                     message = uname + "已下播"
                                     cursor.execute(
-                                        f'replace into livelist2 (uid, state, draw, username, message_title) values'
+                                        f'replace into livelist3 (uid, state, draw, username, message_title) values'
                                         f'("{uid}","{live_status}","none","{uname}","{live_title}")')
 
                         cursor.close()
@@ -2959,6 +2967,17 @@ async def run_bili_push():
                             conn.close()
                         except Exception as e:
                             print('已存在心跳数据库，开始读取数据')
+                        try:
+                            # 数据库文件 如果文件不存在，会自动在当前目录中创建
+                            conn = sqlite3.connect(heartdb)
+                            cursor = conn.cursor()
+                            cursor.execute(
+                                'create table heart(botid VARCHAR(10) primary key, '
+                                'breattime VARCHAR(10), number VARCHAR(10))')
+                            cursor.close()
+                            conn.close()
+                        except Exception as e:
+                            print('已存在心跳数据库，开始读取数据')
                         conn = sqlite3.connect(heartdb)
                         cursor = conn.cursor()
                         cursor.execute('SELECT * FROM ' + groupcode + ' WHERE permission = "10"')
@@ -2968,7 +2987,8 @@ async def run_bili_push():
                         if group_data is None:
                             conn = sqlite3.connect(heartdb)
                             cursor = conn.cursor()
-                            cursor.execute('replace into ' + groupcode + '(botid,permission) values("' + botid + '","10")')
+                            cursor.execute('replace into ' + groupcode + '(botid,permission) '
+                                           'values("' + botid + '","10")')
                             cursor.close()
                             conn.commit()
                             conn.close()
@@ -3038,7 +3058,7 @@ async def run_bili_push():
                         # 获取最新动态
                         sqlite3.connect(livedb)
                         cursor = conn.cursor()
-                        cursor.execute("SELECT * FROM 'livelist2' WHERE uid = '" + uid + "'")
+                        cursor.execute("SELECT * FROM 'livelist3' WHERE uid = '" + uid + "'")
                         datas = cursor.fetchone()
                         cursor.close()
                         conn.commit()
@@ -3055,7 +3075,7 @@ async def run_bili_push():
                                 # 推送直播消息，并保存为已推送
                                 conn = sqlite3.connect(livedb)
                                 cursor = conn.cursor()
-                                cursor.execute("SELECT * FROM 'livelist2' WHERE uid = " + uid)
+                                cursor.execute("SELECT * FROM 'livelist3' WHERE uid = " + uid)
                                 data = cursor.fetchone()
                                 cursor.close()
                                 conn.commit()
@@ -3066,6 +3086,8 @@ async def run_bili_push():
                                     returnpath = data[2]
                                     biliname = data[3]
                                     message_title = data[4]
+                                    room_id = data[5]
+                                    message_url = f"live.bilibili.com/{room_id}"
 
                                     # 0下播 1直播 2轮播
                                     if state == "1":
@@ -3084,7 +3106,7 @@ async def run_bili_push():
                                                 msg += cache_msg
                                                 cache_push_style = cache_push_style.removeprefix("[标题]")
                                             elif cache_push_style.startswith("[链接]"):
-                                                cache_msg = MessageSegment.text("message_url")
+                                                cache_msg = MessageSegment.text(message_url)
                                                 msg += cache_msg
                                                 cache_push_style = cache_push_style.removeprefix("[链接]")
                                             elif cache_push_style.startswith("[内容]"):
@@ -3199,6 +3221,17 @@ async def run_bili_push():
                             conn.close()
                         except Exception as e:
                             logger.info('已存在心跳数据库，开始读取数据')
+                        try:
+                            # 数据库文件 如果文件不存在，会自动在当前目录中创建
+                            conn = sqlite3.connect(heartdb)
+                            cursor = conn.cursor()
+                            cursor.execute(
+                                'create table heart(botid VARCHAR(10) primary key, '
+                                'breattime VARCHAR(10), number VARCHAR(10))')
+                            cursor.close()
+                            conn.close()
+                        except Exception as e:
+                            print('已存在心跳数据库，开始读取数据')
                         conn = sqlite3.connect(heartdb)
                         cursor = conn.cursor()
                         cursor.execute('SELECT * FROM ' + groupcode + ' WHERE permission = "10"')
