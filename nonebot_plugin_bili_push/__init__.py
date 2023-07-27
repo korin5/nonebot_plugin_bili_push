@@ -1,5 +1,5 @@
 import shutil
-
+import asyncio
 from nonebot.adapters.onebot.v11 import Bot, MessageEvent, GroupMessageEvent, MessageSegment
 from nonebot.adapters.onebot.v11 import GROUP_ADMIN, GROUP_OWNER
 from nonebot import require, on_command, logger
@@ -589,9 +589,9 @@ def get_draw(data, only_info: bool = False):
         message_url = "bilibili.com/opus/" + dynamicid
         message_images = []
 
+        # 绘制基础信息
         def draw_info():
             vipStatus = data["desc"]["user_profile"]["vip"]["vipStatus"]
-
             def draw_decorate_card():
                 decorate_card = data["desc"]["user_profile"]["decorate_card"]["card_url"]
                 card_type = data["desc"]["user_profile"]["decorate_card"]["card_type"]
@@ -2327,7 +2327,7 @@ get_new = on_command("最新动态", aliases={'添加订阅', '删除订阅', '�
 
 @get_new.handle()
 async def bili_push_command(bot: Bot, messageevent: MessageEvent):
-    logger.info("bili_push_command_0.1.30")
+    logger.info("bili_push_command_0.1.32")
     returnpath = ""
     message = ""
     code = 0
@@ -2447,9 +2447,7 @@ async def bili_push_command(bot: Bot, messageevent: MessageEvent):
                     message_title = draw_info["message_title"]
                     message_url = draw_info["message_url"]
                     message_body = draw_info["message_body"]
-                    message_images = str(draw_info["message_images"])
-                    message_images = message_images.replace("'", '"')
-                    message_images = json.loads(message_images)["images"]
+                    message_images = draw_info["message_images"]
 
                     num = 10
                     cache_push_style = push_style
@@ -2663,7 +2661,7 @@ minute = "*/" + waittime
 
 @scheduler.scheduled_job("cron", minute=minute, id="job_0")
 async def run_bili_push():
-    logger.info("bili_push_0.1.30")
+    logger.info("bili_push_0.1.32")
     # ############开始自动运行插件############
     now_maximum_send = maximum_send
     import time
@@ -2818,7 +2816,6 @@ async def run_bili_push():
             fortsize = 30
             fontfile = get_file_path("腾祥嘉丽中圆.ttf")
             font = ImageFont.truetype(font=fontfile, size=fortsize)
-
             logger.info("获取订阅列表")
 
             conn = sqlite3.connect(livedb)
@@ -3135,12 +3132,12 @@ async def run_bili_push():
                                                         now_maximum_send -= 1
                                                         await nonebot.get_bot(botid).send_private_msg(user_id=send_qq, message=msg)
                                                         logger.info("发送私聊成功")
-                                                        time.sleep(stime)
+                                                        await asyncio.sleep(stime)
                                                     if new_push is True and state != "0":  # 第一次推送且是下播时不推送
                                                         now_maximum_send -= 1
                                                         await nonebot.get_bot(botid).send_private_msg(user_id=send_qq, message=msg)
                                                         logger.info("发送私聊成功")
-                                                        time.sleep(stime)
+                                                        await asyncio.sleep(stime)
                                                     conn = sqlite3.connect(livedb)
                                                     cursor = conn.cursor()
                                                     cursor.execute(
@@ -3166,13 +3163,13 @@ async def run_bili_push():
                                                         await nonebot.get_bot(botid).send_group_msg(group_id=send_groupcode,
                                                                                                message=msg)
                                                         logger.info("发送群聊成功")
-                                                        time.sleep(stime)
+                                                        await asyncio.sleep(stime)
                                                     if new_push is True and state != "0":  # 第一次推送且是下播时不推送
                                                         now_maximum_send -= 1
                                                         await nonebot.get_bot(botid).send_group_msg(group_id=send_groupcode,
                                                                                                message=msg)
                                                         logger.info("发送群聊成功")
-                                                        time.sleep(stime)
+                                                        await asyncio.sleep(stime)
                                                     conn = sqlite3.connect(livedb)
                                                     cursor = conn.cursor()
                                                     cursor.execute(
@@ -3419,7 +3416,7 @@ async def run_bili_push():
                                     except Exception as e:
                                         logger.error('私聊内容发送失败：send_qq：' + str(send_qq) + ",message:"
                                               + message + ",retrnpath:" + draw_path)
-                                    time.sleep(stime)
+                                    await asyncio.sleep(stime)
                                 else:
                                     logger.info("bot未入群")
                             else:
@@ -3443,7 +3440,7 @@ async def run_bili_push():
                                         logger.error(
                                             '群聊内容发送失败：groupcode：' + str(send_groupcode) + ",message:"
                                             + message + ",retrnpath:" + draw_path)
-                                    time.sleep(stime)
+                                    await asyncio.sleep(stime)
                                 else:
                                     logger.info("bot未入群")
 
