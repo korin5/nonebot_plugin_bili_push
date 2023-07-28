@@ -216,7 +216,7 @@ except Exception as e:
 __plugin_meta__ = PluginMetadata(
     name="bili_push",
     description="推送b站动态",
-    usage="/添加订阅/删除订阅/查看订阅",
+    usage="/添加订阅/删除订阅/查看订阅/最新动态",
     type="application",
     # 发布必填，当前有效类型有：`library`（为其他插件编写提供功能），`application`（向机器人用户提供功能）。
     homepage="https://github.com/SuperGuGuGu/nonebot_plugin_bili_push",
@@ -2327,14 +2327,18 @@ get_new = on_command("最新动态", aliases={'添加订阅', '删除订阅', '�
 
 @get_new.handle()
 async def bili_push_command(bot: Bot, messageevent: MessageEvent):
-    logger.info("bili_push_command_0.1.32")
+    logger.info("bili_push_command_0.1.32.1")
+    botid = str(bot.self_id)
+    bot_type = nonebot.get_bot(botid).type
+    if bot_type != "OneBot V11":
+        logger.error("暂不支持的适配器")
+        await get_new.finish(MessageSegment.text("暂不支持的适配器"))
     returnpath = ""
     message = ""
     code = 0
     qq = messageevent.get_user_id()
-
     msg = messageevent.get_message()
-    msg = re.sub(u"\\(.*?\\)|\\{.*?}|\\[.*?]", "", str(msg))
+    msg = re.sub(u"\\[.*?]", "", str(msg))
     commands = []
     if ' ' in msg:
         messages = msg.split(' ', 1)
@@ -2637,7 +2641,7 @@ async def bili_push_command(bot: Bot, messageevent: MessageEvent):
                 message += "UID:" + uid + "\n"
     elif command == "帮助":
         code = 1
-        message = "Bili_Push：\n/添加订阅\n/删除订阅\n/查看订阅"
+        message = "Bili_Push：\n/添加订阅\n/删除订阅\n/查看订阅\n/最新动态"
 
     # 消息处理完毕，返回发送的消息
     if code == 1:
@@ -2661,7 +2665,7 @@ minute = "*/" + waittime
 
 @scheduler.scheduled_job("cron", minute=minute, id="job_0")
 async def run_bili_push():
-    logger.info("bili_push_0.1.32")
+    logger.info("bili_push_0.1.32.1")
     # ############开始自动运行插件############
     now_maximum_send = maximum_send
     import time
@@ -2681,6 +2685,10 @@ async def run_bili_push():
 
     botids = list(nonebot.get_bots())
     for botid in botids:
+        bot_type = nonebot.get_bot(botid).type
+        if bot_type != "OneBot V11":
+            logger.info("暂不支持的适配器类型")
+            continue
         botid = str(botid)
         logger.info("botid：" + botid)
 
