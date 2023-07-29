@@ -586,7 +586,7 @@ def get_draw(data, only_info: bool = False):
         # 初始化文字版动态
         message_title = ""
         message_body = ""
-        message_url = "bilibili.com/opus/" + dynamicid
+        message_url = "t.bilibili.com/" + dynamicid
         message_images = []
 
         # 绘制基础信息
@@ -2327,7 +2327,7 @@ get_new = on_command("最新动态", aliases={'添加订阅', '删除订阅', '�
 
 @get_new.handle()
 async def bili_push_command(bot: Bot, messageevent: MessageEvent):
-    logger.info("bili_push_command_0.1.32.1")
+    logger.info("bili_push_command_0.1.33")
     botid = str(bot.self_id)
     bot_type = nonebot.get_bot(botid).type
     if bot_type != "OneBot V11":
@@ -2665,7 +2665,7 @@ minute = "*/" + waittime
 
 @scheduler.scheduled_job("cron", minute=minute, id="job_0")
 async def run_bili_push():
-    logger.info("bili_push_0.1.32.1")
+    logger.info("bili_push_0.1.33")
     # ############开始自动运行插件############
     now_maximum_send = maximum_send
     import time
@@ -2926,14 +2926,16 @@ async def run_bili_push():
 
                                     # 写入数据
                                     cursor.execute(
-                                        f'replace into livelist3 (uid, state, draw, username, message_title) values'
-                                        f'("{uid}","{live_status}","{returnpath}","{uname}","{live_title}")')
+                                        f'replace into livelist3 (uid, state, draw, username, message_title, room_id) '
+                                        f'values'
+                                        f'("{uid}","{live_status}","{returnpath}","{uname}","{live_title}","{room_id}")')
 
                                 elif live_status == 0:
                                     message = uname + "已下播"
                                     cursor.execute(
-                                        f'replace into livelist3 (uid, state, draw, username, message_title) values'
-                                        f'("{uid}","{live_status}","none","{uname}","{live_title}")')
+                                        f'replace into livelist3 (uid, state, draw, username, message_title, room_id) '
+                                        f'values'
+                                        f'("{uid}","{live_status}","none","{uname}","{live_title}","{room_id}")')
 
                         cursor.close()
                         conn.commit()
