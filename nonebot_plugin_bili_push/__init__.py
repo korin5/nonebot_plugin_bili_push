@@ -629,16 +629,22 @@ def get_draw(data, only_info: bool = False):
             imageround = imageround.resize((129, 129))
             image.paste(imageround, (73, 73), mask=imageround)
             # 添加头像
-            image_face = connect_api("image", biliface)
-            image_face = image_face.resize((125, 125))
-            imageround = imageround.resize((125, 125))
-            image.paste(image_face, (75, 75), mask=imageround)
+            if pendant == "":
+                image_face = connect_api("image", biliface)
+                image_face = image_face.resize((125, 125))
+                imageround = imageround.resize((125, 125))
+                image.paste(image_face, (75, 75), mask=imageround)
 
             # 添加装饰圈
             if pendant != "":
+                image_face = connect_api("image", biliface)
+                image_face = image_face.resize((96, 96))
+                imageround = imageround.resize((96, 96))
+                image.paste(image_face, (87, 91), mask=imageround)
+
                 paste_image = connect_api("image", pendant)
-                paste_image = paste_image.resize((228, 228))
-                image.paste(paste_image, (21, 26), mask=paste_image)
+                paste_image = paste_image.resize((175, 175))
+                image.paste(paste_image, (46, 51), mask=paste_image)
 
             # 添加动态卡片
             if "decorate_card" in list(data["desc"]["user_profile"]):
