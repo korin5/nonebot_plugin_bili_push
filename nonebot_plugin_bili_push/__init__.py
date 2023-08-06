@@ -6,7 +6,7 @@ from nonebot import require, on_command, logger
 from nonebot.plugin import PluginMetadata
 import nonebot
 import os
-import requests
+import httpx
 import re
 from PIL import Image, ImageDraw, ImageFont
 from io import BytesIO
@@ -22,15 +22,15 @@ def connect_api(type: str, url: str, post_json=None, file_path: str = None):
     # 把api调用的代码放在一起，方便下一步进行异步开发
     if type == "json":
         if post_json is None:
-            return json.loads(requests.get(url).text)
+            return json.loads(httpx.get(url).text)
         else:
-            return json.loads(requests.post(url, json=post_json).text)
+            return json.loads(httpx.post(url, json=post_json).text)
     elif type == "image":
-        return Image.open(BytesIO(requests.get(url).content))
+        return Image.open(BytesIO(httpx.get(url).content))
     elif type == "file":
         cache_file_path = file_path + "cache"
         try:
-            with open(cache_file_path, "wb") as f, requests.get(url) as res:
+            with open(cache_file_path, "wb") as f, httpx.get(url) as res:
                 f.write(res.content)
             logger.info("下载完成")
             shutil.copyfile(cache_file_path, file_path)
@@ -481,62 +481,75 @@ def draw_text(text: str,
     image = Image.new("RGBA", size=(x, y), color=(0, 0, 0, 0))  # 生成透明图片
     draw_image = ImageDraw.Draw(image)
 
+    # 绘制文字
     if not calculate:
-        x_num = -1
-        y_num = 0
-        text_num = -1
+        def get_font_render_w(text):
+            if text == " ":
+                return 20
+            none = ["\n", ""]
+            if text in none:
+                return 1
+            canvas = Image.new('RGB', (100, 100))
+            draw = ImageDraw.Draw(canvas)
+            draw.text((0, 0), text, font=font, fill=(255, 255, 255))
+            bbox = canvas.getbbox()
+            # 宽高
+            # size = (bbox[2] - bbox[0], bbox[3] - bbox[1])
+            return bbox[2] - bbox[0]
+        texts = text
+        print_x = 0
+        print_y = 0
         jump_num = 0
-        for fort in text:
+        text_num = -1
+        for text in texts:
             text_num += 1
             if jump_num > 0:
                 jump_num -= 1
             else:
-                x_num += 1
-                # 打印换行
-                if x_num > textlen or fort == "\n":
-                    x_num = 0
-                    y_num += 1.2
-                    if fort == "\n":
-                        x_num = -1
-                biliemoji_name = ""
+                if (textlen * fortsize) < print_x or text == "\n":
+                    print_x = 0
+                    print_y += 1.3 * fortsize
+                    if text == "\n":
+                        continue
+                biliemoji_name = None
                 if biliemoji_infos is not None:
                     # 检测biliemoji
-                    if fort == "[":
-                        testnum = 0
-                        while testnum <= 55:
-                            testnum += 1
-                            findnum = text_num + testnum
-                            if text[findnum] == "[":
-                                testnum = 60
-                            elif text[findnum] == "]":
-                                biliemoji_name = text[text_num:findnum] + "]"
-                                jump_num = len(biliemoji_name) - 1
-                                testnum = 60
-                    if biliemoji_name != "":
-                        # 粘贴biliemoji
-                        for emoji_info in biliemoji_infos:
-                            emoji_name = emoji_info["emoji_name"]
-                            if emoji_name == biliemoji_name:
-                                emoji_url = emoji_info["url"]
-                                paste_image = connect_api("image", emoji_url)
-                                paste_image = paste_image.resize((int(fortsize * 1.2), int(fortsize * 1.2)))
-                                image.paste(paste_image, (int(x_num * fortsize), int(y_num * fortsize)))
-                                x_num += 1
-                if biliemoji_name == "":
-                    if is_emoji(fort):
-                        paste_image = get_emoji(fort)
+                    if text == "[":
+                        emoji_len = 0
+                        while emoji_len < 50:
+                            emoji_len += 1
+                            emoji_end = text_num + emoji_len
+                            if texts[emoji_end] == "[":
+                                # 不是bili emoji，跳过
+                                emoji_len = 60
+                            elif texts[emoji_end] == "]":
+                                biliemoji_name = texts[text_num:emoji_end + 1]
+                                print(biliemoji_name)
+                                jump_num = emoji_len
+                                emoji_len = 60
+                if biliemoji_name is not None:
+                    for biliemoji_info in biliemoji_infos:
+                        emoji_name = biliemoji_info["emoji_name"]
+                        if emoji_name == biliemoji_name:
+                            emoji_url = biliemoji_info["url"]
+                            paste_image = connect_api("image", emoji_url)
+                            paste_image = paste_image.resize((int(fortsize * 1.2), int(fortsize * 1.2)))
+                            image.paste(paste_image, (int(print_x), int(print_y)))
+                            print_x += fortsize
+                else:
+                    if is_emoji(text):
+                        paste_image = get_emoji(text)
                         paste_image = paste_image.resize((int(fortsize * 1.1), int(fortsize * 1.1)))
-                        image.paste(paste_image, (int(x_num * fortsize), int(y_num * fortsize)), mask=paste_image)
+                        image.paste(paste_image, (int(print_x), int(print_y)), mask=paste_image)
+                        print_x += fortsize
                     else:
-                        draw_image.text(xy=(int(x_num * fortsize), int(y_num * fortsize)),
-                                        text=fort,
+                        draw_image.text(xy=(int(print_x), int(print_y)),
+                                        text=text,
                                         fill=(0, 0, 0),
                                         font=font)
-                        if fort in half_text:
-                            x_num -= 0.4
+                        print_x += get_font_render_w(text) + 2
 
     return image
-
 
 def get_draw(data, only_info: bool = False):
     if debug_log:
@@ -2307,7 +2320,6 @@ def get_draw(data, only_info: bool = False):
                 draw_image.save(returnpath)
                 logger.info("bili-push_draw_绘图成功")
                 code = 2
-
 
     except Exception as e:
         logger.error(f"获取消息出错，请讲此消息反馈给开发者。动态id：{dynamicid}")
