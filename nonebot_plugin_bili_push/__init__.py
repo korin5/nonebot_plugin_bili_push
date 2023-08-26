@@ -7,6 +7,7 @@ from nonebot.plugin import PluginMetadata
 import nonebot
 import os
 import httpx
+import requests
 import re
 from PIL import Image, ImageDraw, ImageFont
 from io import BytesIO
@@ -30,7 +31,8 @@ def connect_api(type: str, url: str, post_json=None, file_path: str = None):
     elif type == "file":
         cache_file_path = file_path + "cache"
         try:
-            with open(cache_file_path, "wb") as f, httpx.get(url) as res:
+            # 这里不能用httpx。用就报错。
+            with open(cache_file_path, "wb") as f, requests.get(url) as res:
                 f.write(res.content)
             logger.info("下载完成")
             shutil.copyfile(cache_file_path, file_path)
@@ -495,7 +497,7 @@ def draw_text(text: str,
             bbox = canvas.getbbox()
             # 宽高
             # size = (bbox[2] - bbox[0], bbox[3] - bbox[1])
-            return bbox[2] - bbox[0]
+            return bbox[2]
         texts = text
         print_x = 0
         print_y = 0
@@ -2345,7 +2347,7 @@ get_new = on_command("最新动态", aliases={'添加订阅', '删除订阅', '�
 
 @get_new.handle()
 async def bili_push_command(bot: Bot, messageevent: MessageEvent):
-    logger.info("bili_push_command_0.1.33")
+    logger.info("bili_push_command_0.1.35")
     botid = str(bot.self_id)
     bot_type = nonebot.get_bot(botid).type
     if bot_type != "OneBot V11":
@@ -2683,7 +2685,7 @@ minute = "*/" + waittime
 
 @scheduler.scheduled_job("cron", minute=minute, id="job_0")
 async def run_bili_push():
-    logger.info("bili_push_0.1.33")
+    logger.info("bili_push_0.1.35")
     # ############开始自动运行插件############
     now_maximum_send = maximum_send
     import time
