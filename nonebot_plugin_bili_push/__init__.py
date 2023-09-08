@@ -497,6 +497,8 @@ def draw_text(text: str,
             bbox = canvas.getbbox()
             # 宽高
             # size = (bbox[2] - bbox[0], bbox[3] - bbox[1])
+            if bbox is None:
+                return 0
             return bbox[2]
         texts = text
         print_x = 0
@@ -3196,15 +3198,16 @@ async def run_bili_push():
                                                         await asyncio.sleep(stime)
                                                     if new_push is True and state != "0":  # 第一次推送且是下播时不推送
                                                         now_maximum_send -= 1
-                                                        await nonebot.get_bot(botid).send_group_msg(group_id=send_groupcode,
-                                                                                               message=msg)
+                                                        await nonebot.get_bot(botid).send_group_msg(
+                                                            group_id=send_groupcode,
+                                                            message=msg)
                                                         logger.info("发送群聊成功")
                                                         await asyncio.sleep(stime)
                                                     conn = sqlite3.connect(livedb)
                                                     cursor = conn.cursor()
                                                     cursor.execute(
                                                         "replace into 'g" + send_groupcode + "'(dynamicid,uid) " +
-                                                                                             "values('live" + uid + "','" + state + "')")
+                                                        "values('live" + uid + "','" + state + "')")
                                                     cursor.close()
                                                     conn.commit()
                                                     conn.close()
@@ -3268,7 +3271,8 @@ async def run_bili_push():
                         if group_data is None:
                             conn = sqlite3.connect(heartdb)
                             cursor = conn.cursor()
-                            cursor.execute('replace into ' + groupcode + '(botid,permission) values("' + botid + '","10")')
+                            cursor.execute(
+                                'replace into ' + groupcode + '(botid,permission) values("' + botid + '","10")')
                             cursor.close()
                             conn.commit()
                             conn.close()
@@ -3321,7 +3325,7 @@ async def run_bili_push():
                             conn = sqlite3.connect(livedb)
                             cursor = conn.cursor()
                             cursor.execute(
-                                "create table "+groupcode+" (dynamicid int(10) primary key, uid varchar(10))")
+                                "create table " + groupcode + " (dynamicid int(10) primary key, uid varchar(10))")
                             cursor.close()
                             conn.close()
                         except Exception as e:
@@ -3445,7 +3449,7 @@ async def run_bili_push():
                                         logger.info("发送私聊成功")
                                     except Exception as e:
                                         logger.error('私聊内容发送失败：send_qq：' + str(send_qq) + ",message:"
-                                              + message + ",retrnpath:" + draw_path)
+                                                     + message + ",retrnpath:" + draw_path)
                                     await asyncio.sleep(stime)
                                 else:
                                     logger.info("bot未入群")
@@ -3456,7 +3460,8 @@ async def run_bili_push():
                                     # bot已添加好友，发送消息
                                     try:
                                         logger.info("开始发送群聊")
-                                        await nonebot.get_bot(botid).send_group_msg(group_id=send_groupcode, message=msg)
+                                        await nonebot.get_bot(botid).send_group_msg(group_id=send_groupcode,
+                                                                                    message=msg)
                                         conn = sqlite3.connect(livedb)
                                         cursor = conn.cursor()
                                         cursor.execute(
