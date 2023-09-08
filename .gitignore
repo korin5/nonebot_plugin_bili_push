@@ -5,3 +5,5 @@
 /dist
 /nonebot_plugin_bili_push.egg-info
 /requirements.txt
+/.pypirc.yml
+/.gitignore
