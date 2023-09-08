@@ -27,7 +27,11 @@ def connect_api(type: str, url: str, post_json=None, file_path: str = None):
         else:
             return json.loads(httpx.post(url, json=post_json).text)
     elif type == "image":
-        return Image.open(BytesIO(httpx.get(url).content))
+        try:
+            image = Image.open(BytesIO(httpx.get(url).content))
+        except Exception as e:
+            image = draw_text("获取图片出错", 50, 10)
+        return image
     elif type == "file":
         cache_file_path = file_path + "cache"
         try:
@@ -430,7 +434,11 @@ def draw_text(text: str,
     fortsize = size
     if use_api:
         if fontfile == "":
-            fontfile = get_file_path("腾祥嘉丽中圆.ttf")
+            try:
+                # 尝试获取字体，获取不到就用默认字体
+                fontfile = get_file_path("腾祥嘉丽中圆.ttf")
+            except Exception as e:
+                fontfile = None
         font = ImageFont.truetype(font=fontfile, size=fortsize)
     else:
         font = None
@@ -596,7 +604,11 @@ def get_draw(data, only_info: bool = False):
     except Exception as e:
         emoji_infos = []
     fortsize = 30
-    fontfile = get_file_path("腾祥嘉丽中圆.ttf")
+    try:
+        # 尝试获取字体，获取不到就用默认字体
+        fontfile = get_file_path("腾祥嘉丽中圆.ttf")
+    except Exception as e:
+        fontfile = None
     font = ImageFont.truetype(font=fontfile, size=fortsize)
 
     try:
@@ -623,7 +635,11 @@ def get_draw(data, only_info: bool = False):
                 if is_fan == 1:
                     draw = ImageDraw.Draw(image)
                     cache_fortsize = 36
-                    fontfile = get_file_path("farout2.ttf")
+                    try:
+                        # 尝试获取字体，获取不到就用默认字体
+                        fontfile = get_file_path("farout2.ttf")
+                    except Exception as e:
+                        fontfile = None
                     font = ImageFont.truetype(font=fontfile, size=cache_fortsize)
                     fan_number = str(fan_number)
                     while len(fan_number) < 6:
@@ -642,7 +658,8 @@ def get_draw(data, only_info: bool = False):
 
             # 开始往图片添加内容
             # 添加头像底图
-            imageround = get_emoji("imageround")
+            imageround = Image.new("RGBA", (200, 200), (255, 255, 255, 0))
+            imageround = circle_corner(imageround, 100)
             imageround = imageround.resize((129, 129))
             image.paste(imageround, (73, 73), mask=imageround)
             # 添加头像
@@ -802,7 +819,8 @@ def get_draw(data, only_info: bool = False):
                     # 添加转发头像
                     image_face = connect_api("image", origin_biliface)
                     image_face = image_face.resize((110, 110))
-                    imageround = get_emoji("imageround")
+                    imageround = Image.new("RGBA", (200, 200), (255, 255, 255, 0))
+                    imageround = circle_corner(imageround, 100)
                     imageround = imageround.resize((114, 114))
                     draw_image.paste(imageround, (x + 48, y + 48), mask=imageround)
                     imageround = imageround.resize((110, 110))
@@ -1122,7 +1140,8 @@ def get_draw(data, only_info: bool = False):
                     # 添加转发头像
                     image_face = connect_api("image", origin_biliface)
                     image_face = image_face.resize((110, 110))
-                    imageround = get_emoji("imageround")
+                    imageround = Image.new("RGBA", (200, 200), (255, 255, 255, 0))
+                    imageround = circle_corner(imageround, 100)
                     imageround = imageround.resize((114, 114))
                     draw_image.paste(imageround, (x + 48, y + 48), mask=imageround)
                     imageround = imageround.resize((110, 110))
@@ -1276,7 +1295,8 @@ def get_draw(data, only_info: bool = False):
                     # 添加转发头像
                     image_face = connect_api("image", origin_biliface)
                     image_face = image_face.resize((110, 110))
-                    imageround = get_emoji("imageround")
+                    imageround = Image.new("RGBA", (200, 200), (255, 255, 255, 0))
+                    imageround = circle_corner(imageround, 100)
                     imageround = imageround.resize((114, 114))
                     draw_image.paste(imageround, (x + 48, y + 48), mask=imageround)
                     imageround = imageround.resize((110, 110))
@@ -1384,7 +1404,8 @@ def get_draw(data, only_info: bool = False):
                     # 添加转发头像
                     image_face = connect_api("image", origin_biliface)
                     image_face = image_face.resize((110, 110))
-                    imageround = get_emoji("imageround")
+                    imageround = Image.new("RGBA", (200, 200), (255, 255, 255, 0))
+                    imageround = circle_corner(imageround, 100)
                     imageround = imageround.resize((114, 114))
                     draw_image.paste(imageround, (x + 48, y + 48), mask=imageround)
                     imageround = imageround.resize((110, 110))
@@ -2349,7 +2370,7 @@ get_new = on_command("最新动态", aliases={'添加订阅', '删除订阅', '�
 
 @get_new.handle()
 async def bili_push_command(bot: Bot, messageevent: MessageEvent):
-    logger.info("bili_push_command_0.1.35")
+    logger.info("bili_push_command_0.1.37")
     botid = str(bot.self_id)
     bot_type = nonebot.get_bot(botid).type
     if bot_type != "OneBot V11":
@@ -2687,7 +2708,7 @@ minute = "*/" + waittime
 
 @scheduler.scheduled_job("cron", minute=minute, id="job_0")
 async def run_bili_push():
-    logger.info("bili_push_0.1.35")
+    logger.info("bili_push_0.1.37")
     # ############开始自动运行插件############
     now_maximum_send = maximum_send
     import time
@@ -2717,12 +2738,12 @@ async def run_bili_push():
         friends = await nonebot.get_bot(botid).get_friend_list()
         friendlist = []
         for friendinfo in friends:
-            friendlist.append(str(friendinfo['user_id']))
+            friendlist.append(str(friendinfo["user_id"]))
 
         groups = await nonebot.get_bot(botid).get_group_list()
         grouplist = []
         for memberinfo in groups:
-            grouplist.append(str(memberinfo['group_id']))
+            grouplist.append(str(memberinfo["group_id"]))
 
         # 新建数据库
         # 读取数据库列表
@@ -2844,7 +2865,11 @@ async def run_bili_push():
         if run:
             logger.info('---------获取更新的直播----------')
             fortsize = 30
-            fontfile = get_file_path("腾祥嘉丽中圆.ttf")
+            try:
+                # 尝试获取字体，获取不到就用默认字体
+                fontfile = get_file_path("腾祥嘉丽中圆.ttf")
+            except Exception as e:
+                fontfile = None
             font = ImageFont.truetype(font=fontfile, size=fortsize)
             logger.info("获取订阅列表")
 
@@ -2907,7 +2932,8 @@ async def run_bili_push():
                                     # 添加头像
                                     image_face = connect_api("image", face)
                                     image_face = image_face.resize((125, 125))
-                                    imageround = get_emoji("imageround")
+                                    imageround = Image.new("RGBA", (200, 200), (255, 255, 255, 0))
+                                    imageround = circle_corner(imageround, 100)
                                     imageround = imageround.resize((129, 129))
                                     draw_image.paste(imageround, (73, 73), mask=imageround)
                                     imageround = imageround.resize((125, 125))
@@ -3422,7 +3448,10 @@ async def run_bili_push():
                                     for url in message_images:
                                         num += 1
                                         image = connect_api("image", url)
-                                        image_path = cachepath + dynamicid + "/" + str(num) + ".png"
+                                        image_path = f"{cachepath}{dynamicid}/"
+                                        if not os.path.exists(image_path):
+                                            os.makedirs(image_path)
+                                        image_path += f"{num}.png"
                                         image.save(image_path)
                                         cache_msg = MessageSegment.image(r"file:///" + image_path)
                                         msg += cache_msg
