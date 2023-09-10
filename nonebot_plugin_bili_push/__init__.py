@@ -14,6 +14,7 @@ from io import BytesIO
 import json
 import sqlite3
 import random
+import time
 
 require("nonebot_plugin_apscheduler")
 from nonebot_plugin_apscheduler import scheduler
@@ -45,6 +46,7 @@ def connect_api(type: str, url: str, post_json=None, file_path: str = None):
             logger.error(f"文件下载出错-{file_path}")
     return
 
+
 config = nonebot.get_driver().config
 # 读取配置
 # -》无需修改代码文件，请在“.env”文件中改。《-
@@ -66,7 +68,7 @@ config = nonebot.get_driver().config
 # bilipush_apiurl="http://cdn.kanon.ink"
 #
 # 配置4：
-# 是否使用api来获取emoji图像
+# 是否使用api
 # 为True时使用api，为False时不使用api，为空时自动选择。
 # bilipush_emojiapi=True
 #
@@ -264,7 +266,12 @@ def get_file_path(file_name):
     return file_path
 
 
-def get_emoji(emoji):
+def get_emoji(emoji: str):
+    """
+    获取emoji图像
+    :param emoji: emoji字符
+    :return: 图像
+    """
     cachepath = basepath + "cache/emoji/"
     if not os.path.exists(cachepath):
         os.makedirs(cachepath)
@@ -292,6 +299,11 @@ def get_emoji(emoji):
 
 
 def is_emoji(emoji):
+    """
+    判断字符是否为emoji
+    :param emoji: 单个字符
+    :return: True / False
+    """
     if not use_api:
         return False
     try:
@@ -316,7 +328,6 @@ def circle_corner(img, radii):
     :param radii: 半径，如：30。
     :return: 返回一个圆角处理后的图象。
     """
-
     # 画圆（用于分离4个角）
     circle = Image.new('L', (radii * 2, radii * 2), 0)  # 创建一个黑色背景的画布
     draw = ImageDraw.Draw(circle)
@@ -339,6 +350,12 @@ def circle_corner(img, radii):
 
 
 def new_background(image_x: int, image_y: int):
+    """
+    绘制一个背景图
+    :param image_x: x的长度
+    :param image_y: y的长度
+    :return: 图像
+    """
     image_x = int(image_x)
     image_y = int(image_y)
     # 创建 背景_背景
@@ -374,6 +391,19 @@ def new_background(image_x: int, image_y: int):
 
 
 def image_resize2(image, size: [int, int], overturn=False):
+    """
+    重缩放图像
+    overturn=False：
+    图像的最长边匹配缩放尺寸的最短边
+    overturn=True：
+    图像的最短边匹配缩放尺寸的最长边
+    如源图像比缩放后的尺寸长，则修剪到最上边
+    如源图像比缩放后的尺寸短，则修剪到中间位置
+    :param image: 源图像
+    :param size: 缩放后的尺寸
+    :param overturn: 是否将图像短边匹配缩放尺寸的最长边
+    :return: 图像
+    """
     image_background = Image.new("RGBA", size=size, color=(0, 0, 0, 0))
     image_background = image_background.resize(size)
     w, h = image_background.size
@@ -405,7 +435,6 @@ def image_resize2(image, size: [int, int], overturn=False):
             printx = 0
             printy = int((h - rey) / 2)
             image_background.paste(paste_image, (printx, printy))
-
     return image_background
 
 
@@ -508,6 +537,7 @@ def draw_text(text: str,
             if bbox is None:
                 return 0
             return bbox[2]
+
         texts = text
         print_x = 0
         print_y = 0
@@ -563,24 +593,30 @@ def draw_text(text: str,
 
     return image
 
+
 def get_draw(data, only_info: bool = False):
-    if debug_log:
-        logger.debug("data" + str(data))
-    import time
+    """
+    绘制动态的主要函数
+    :param data: 动态的json数据
+    :param only_info: 只绘制对应的up信息，用于关注的时候确认是否输错UID
+    :return: {
+        "code": 状态，如果是0则为未支持的动态,
+        "draw_path": 绘制的动态存放路径,
+        "message_title": 动态的类型,
+        "message_url": 动态的UID,
+        "message_body": 动态的内容,
+        "message_images": 动态包含的图片
+        }
+    """
     date = str(time.strftime("%Y-%m-%d", time.localtime()))
     date_year = str(time.strftime("%Y", time.localtime()))
     date_month = str(time.strftime("%m", time.localtime()))
     date_day = str(time.strftime("%d", time.localtime()))
     timenow = str(time.strftime("%H-%M-%S", time.localtime()))
-    dateshort = date_year + date_month + date_day
-    time_h = str(time.strftime("%H", time.localtime()))
-    time_m = str(time.strftime("%M", time.localtime()))
-    time_s = str(time.strftime("%S", time.localtime()))
-    timeshort = time_h + time_m + time_s
+    
     cachepath = basepath + f"cache/draw/{date_year}/{date_month}/{date_day}/"
     if not os.path.exists(cachepath):
         os.makedirs(cachepath)
-    random_num = str(random.randint(10000, 99999))
     addimage = ""
     run = True  # 代码折叠助手
     code = 0
@@ -621,6 +657,7 @@ def get_draw(data, only_info: bool = False):
         # 绘制基础信息
         def draw_info():
             vipStatus = data["desc"]["user_profile"]["vip"]["vipStatus"]
+
             def draw_decorate_card():
                 decorate_card = data["desc"]["user_profile"]["decorate_card"]["card_url"]
                 card_type = data["desc"]["user_profile"]["decorate_card"]["card_type"]
@@ -650,6 +687,7 @@ def get_draw(data, only_info: bool = False):
                     image = Image.new("RGBA", (x + 50, y), (0, 0, 0, 0))
                     image.paste(paste_image, (50, 0), mask=paste_image)
                 return image
+
             # 绘制头像名称等信息
             image = Image.new("RGBA", (900, 230), (0, 0, 0, 0))
             draw = ImageDraw.Draw(image)
@@ -727,7 +765,7 @@ def get_draw(data, only_info: bool = False):
             returnpath = cachepath + 'bili动态/'
             if not os.path.exists(returnpath):
                 os.makedirs(returnpath)
-            returnpath = returnpath + date + '_' + timenow + '_' + random_num + '.png'
+            returnpath = f"{returnpath}{date}_{timenow}_{random.randint(1000, 9999)}.png"
             draw_image.save(returnpath)
             logger.info("bili-push_draw_绘图成功")
             code = 2
@@ -917,7 +955,7 @@ def get_draw(data, only_info: bool = False):
                                 else:
                                     # 打印表情
                                     try:
-                                        paste_image = get_emoji(font)
+                                        paste_image = get_emoji(text)
                                         paste_image = paste_image.resize((int(fortsize * 1.1), int(fortsize * 1.1)))
                                         draw_image.paste(paste_image,
                                                          (int(x + print_x * fortsize), int(y + print_y * fortsize)))
@@ -995,7 +1033,7 @@ def get_draw(data, only_info: bool = False):
                                             print_x -= 0.4
                                     else:
                                         # 打印表情
-                                        paste_image = get_emoji(font)
+                                        paste_image = get_emoji(text)
                                         paste_image = paste_image.resize((int(fortsize * 1.1), int(fortsize * 1.1)))
                                         draw_image.paste(paste_image,
                                                          (int(x + print_x * fortsize), int(y + print_y * fortsize)))
@@ -1003,7 +1041,7 @@ def get_draw(data, only_info: bool = False):
                     returnpath = cachepath + 'bili动态/'
                     if not os.path.exists(returnpath):
                         os.makedirs(returnpath)
-                    returnpath = returnpath + date + '_' + timenow + '_' + random_num + '.png'
+                    returnpath = f"{returnpath}{date}_{timenow}_{random.randint(1000, 9999)}.png"
                     draw_image.save(returnpath)
                     logger.info("bili-push_draw_绘图成功")
                     code = 2
@@ -1209,7 +1247,7 @@ def get_draw(data, only_info: bool = False):
                     returnpath = cachepath + 'bili动态/'
                     if not os.path.exists(returnpath):
                         os.makedirs(returnpath)
-                    returnpath = returnpath + date + '_' + timenow + '_' + random_num + '.png'
+                    returnpath = f"{returnpath}{date}_{timenow}_{random.randint(1000, 9999)}.png"
                     draw_image.save(returnpath)
                     logger.info("bili-push_draw_绘图成功")
                     code = 2
@@ -1322,7 +1360,7 @@ def get_draw(data, only_info: bool = False):
                     returnpath = cachepath + 'bili动态/'
                     if not os.path.exists(returnpath):
                         os.makedirs(returnpath)
-                    returnpath = returnpath + date + '_' + timenow + '_' + random_num + '.png'
+                    returnpath = f"{returnpath}{date}_{timenow}_{random.randint(1000, 9999)}.png"
                     draw_image.save(returnpath)
                     logger.info("bili-push_draw_绘图成功")
                     code = 2
@@ -1456,7 +1494,7 @@ def get_draw(data, only_info: bool = False):
                     returnpath = cachepath + 'bili动态/'
                     if not os.path.exists(returnpath):
                         os.makedirs(returnpath)
-                    returnpath = returnpath + date + '_' + timenow + '_' + random_num + '.png'
+                    returnpath = f"{returnpath}{date}_{timenow}_{random.randint(1000, 9999)}.png"
                     draw_image.save(returnpath)
                     logger.info("bili-push_绘图成功")
                     code = 2
@@ -1544,7 +1582,7 @@ def get_draw(data, only_info: bool = False):
                     returnpath = cachepath + 'bili动态/'
                     if not os.path.exists(returnpath):
                         os.makedirs(returnpath)
-                    returnpath = returnpath + date + '_' + timenow + '_' + random_num + '.png'
+                    returnpath = f"{returnpath}{date}_{timenow}_{random.randint(1000, 9999)}.png"
                     draw_image.save(returnpath)
                     logger.info("bili-push_绘图成功")
                     code = 2
@@ -1643,7 +1681,7 @@ def get_draw(data, only_info: bool = False):
                     returnpath = cachepath + 'bili动态/'
                     if not os.path.exists(returnpath):
                         os.makedirs(returnpath)
-                    returnpath = returnpath + date + '_' + timenow + '_' + random_num + '.png'
+                    returnpath = f"{returnpath}{date}_{timenow}_{random.randint(1000, 9999)}.png"
                     draw_image.save(returnpath)
                     logger.info("bili-push_绘图成功")
                     code = 2
@@ -1780,7 +1818,7 @@ def get_draw(data, only_info: bool = False):
                 returnpath = cachepath + 'bili动态/'
                 if not os.path.exists(returnpath):
                     os.makedirs(returnpath)
-                returnpath = returnpath + date + '_' + timenow + '_' + random_num + '.png'
+                returnpath = f"{returnpath}{date}_{timenow}_{random.randint(1000, 9999)}.png"
                 draw_image.save(returnpath)
                 logger.info("bili-push_draw_绘图成功")
                 code = 2
@@ -1837,7 +1875,7 @@ def get_draw(data, only_info: bool = False):
                 returnpath = cachepath + 'bili动态/'
                 if not os.path.exists(returnpath):
                     os.makedirs(returnpath)
-                returnpath = returnpath + date + '_' + timenow + '_' + random_num + '.png'
+                returnpath = f"{returnpath}{date}_{timenow}_{random.randint(1000, 9999)}.png"
                 draw_image.save(returnpath)
                 logger.info("bili-push_draw_绘图成功")
                 code = 2
@@ -1938,7 +1976,7 @@ def get_draw(data, only_info: bool = False):
                                     print_x -= 0.4
                             else:
                                 # 打印表情
-                                paste_image = get_emoji(font)
+                                paste_image = get_emoji(text)
                                 paste_image = paste_image.resize((int(fortsize * 1.1), int(fortsize * 1.1)))
                                 draw_image.paste(paste_image,
                                                  (int(x + print_x * fortsize), int(y + print_y * fortsize)))
@@ -2021,7 +2059,7 @@ def get_draw(data, only_info: bool = False):
                                     print_x -= 0.4
                             else:
                                 # 打印表情
-                                paste_image = get_emoji(font)
+                                paste_image = get_emoji(text)
                                 paste_image = paste_image.resize((int(fortsize * 1.1), int(fortsize * 1.1)))
                                 draw_image.paste(paste_image,
                                                  (int(x + print_x * fortsize), int(y + print_y * fortsize)))
@@ -2092,7 +2130,7 @@ def get_draw(data, only_info: bool = False):
                                     print_x -= 0.4
                             else:
                                 # 打印表情
-                                paste_image = get_emoji(font)
+                                paste_image = get_emoji(text)
                                 paste_image = paste_image.resize((int(fortsize * 1.1), int(fortsize * 1.1)))
                                 draw_image.paste(paste_image,
                                                  (int(x + print_x * fortsize), int(y + print_y * fortsize)))
@@ -2100,7 +2138,7 @@ def get_draw(data, only_info: bool = False):
                 returnpath = cachepath + 'bili动态/'
                 if not os.path.exists(returnpath):
                     os.makedirs(returnpath)
-                returnpath = returnpath + date + '_' + timenow + '_' + random_num + '.png'
+                returnpath = f"{returnpath}{date}_{timenow}_{random.randint(1000, 9999)}.png"
                 draw_image.save(returnpath)
                 logger.info("bili-push_draw_绘图成功")
                 code = 2
@@ -2213,7 +2251,7 @@ def get_draw(data, only_info: bool = False):
                                     print_x -= 0.4
                             else:
                                 # 打印表情
-                                paste_image = get_emoji(font)
+                                paste_image = get_emoji(text)
                                 paste_image = paste_image.resize((int(fortsize * 1.1), int(fortsize * 1.1)))
                                 draw_image.paste(paste_image,
                                                  (int(x + print_x * fortsize), int(y + print_y * fortsize)))
@@ -2283,7 +2321,7 @@ def get_draw(data, only_info: bool = False):
                                     print_x -= 0.4
                             else:
                                 # 打印表情
-                                paste_image = get_emoji(font)
+                                paste_image = get_emoji(text)
                                 paste_image = paste_image.resize((int(fortsize * 1.1), int(fortsize * 1.1)))
                                 draw_image.paste(paste_image,
                                                  (int(x + print_x * fortsize), int(y + print_y * fortsize)))
@@ -2291,7 +2329,7 @@ def get_draw(data, only_info: bool = False):
                 returnpath = cachepath + 'bili动态/'
                 if not os.path.exists(returnpath):
                     os.makedirs(returnpath)
-                returnpath = returnpath + date + '_' + timenow + '_' + random_num + '.png'
+                returnpath = f"{returnpath}{date}_{timenow}_{random.randint(1000, 9999)}.png"
                 draw_image.save(returnpath)
                 logger.info("bili-push_draw_绘图成功")
                 code = 2
@@ -2341,7 +2379,7 @@ def get_draw(data, only_info: bool = False):
                 returnpath = cachepath + 'bili动态/'
                 if not os.path.exists(returnpath):
                     os.makedirs(returnpath)
-                returnpath = returnpath + date + '_' + timenow + '_' + random_num + '.png'
+                returnpath = f"{returnpath}{date}_{timenow}_{random.randint(1000, 9999)}.png"
                 draw_image.save(returnpath)
                 logger.info("bili-push_draw_绘图成功")
                 code = 2
@@ -2362,7 +2400,7 @@ def get_draw(data, only_info: bool = False):
         "message_url": message_url,
         "message_body": message_body,
         "message_images": message_images
-        }
+    }
 
 
 get_new = on_command("最新动态", aliases={'添加订阅', '删除订阅', '查看订阅', '帮助'}, block=False)
@@ -2425,11 +2463,6 @@ async def bili_push_command(bot: Bot, messageevent: MessageEvent):
     date_day = str(time.strftime("%d", time.localtime()))
     timenow = str(time.strftime("%H-%M-%S", time.localtime()))
     dateshort = date_year + date_month + date_day
-    time_h = str(time.strftime("%H", time.localtime()))
-    time_m = str(time.strftime("%M", time.localtime()))
-    time_s = str(time.strftime("%S", time.localtime()))
-    timeshort = time_h + time_m + time_s
-
     cachepath = basepath + f"cache/draw/{date_year}/{date_month}/{date_day}/"
 
     # 新建数据库
@@ -2477,9 +2510,7 @@ async def bili_push_command(bot: Bot, messageevent: MessageEvent):
             logger.info(f"开始获取信息-{uid}")
             url = 'https://api.vc.bilibili.com/dynamic_svr/v1/dynamic_svr/space_history?host_uid=' + uid
             returnjson = connect_api("json", url)
-            returncode = returnjson["code"]
-            logger.info('returncode:' + str(returncode))
-            if returncode == 0:
+            if returnjson["code"] == 0:
                 logger.info('获取动态图片并发送')
                 # 获取动态图片并发送
                 draw_info = get_draw(returnjson["data"]["cards"][0])
@@ -2598,13 +2629,13 @@ async def bili_push_command(bot: Bot, messageevent: MessageEvent):
                             for return_data in return_datas:
                                 dynamicid = str(return_data["desc"]["dynamic_id"])
                                 cursor.execute(
-                                    "replace into "+groupcode+"(dynamicid,uid) values('" + dynamicid + "','" + uid + "')")
+                                    "replace into " + groupcode + "(dynamicid,uid) values('" + dynamicid + "','" + uid + "')")
                             cursor.close()
                             conn.commit()
                             conn.close()
 
                             drawimage = get_draw(return_datas[0], only_info=True)
-                            if drawimage["code"] == 2:
+                            if drawimage["code"] != 0:
                                 returnpath = drawimage["draw_path"]
                                 message = "添加订阅成功"
                                 code = 3
@@ -2642,7 +2673,8 @@ async def bili_push_command(bot: Bot, messageevent: MessageEvent):
 
                 conn = sqlite3.connect(livedb)
                 cursor = conn.cursor()
-                cursor.execute("SELECT * FROM subscriptionlist2 WHERE uid = " + uid + " AND groupcode = '" + groupcode+"'")
+                cursor.execute(
+                    "SELECT * FROM subscriptionlist2 WHERE uid = " + uid + " AND groupcode = '" + groupcode + "'")
                 subscription = cursor.fetchone()
                 cursor.close()
                 conn.commit()
@@ -2703,6 +2735,7 @@ async def bili_push_command(bot: Bot, messageevent: MessageEvent):
     else:
         await get_new.finish()
 
+
 minute = "*/" + waittime
 
 
@@ -2718,12 +2751,7 @@ async def run_bili_push():
     date_day = str(time.strftime("%d", time.localtime()))
     timenow = str(time.strftime("%H-%M-%S", time.localtime()))
     dateshort = date_year + date_month + date_day
-    time_h = str(time.strftime("%H", time.localtime()))
-    time_m = str(time.strftime("%M", time.localtime()))
-    time_s = str(time.strftime("%S", time.localtime()))
-    timeshort = time_h + time_m + time_s
     cachepath = basepath + f"cache/draw/{date_year}/{date_month}/{date_day}/"
-    random_num = str(random.randint(1000, 9999))
     message = ""
 
     botids = list(nonebot.get_bots())
@@ -2816,8 +2844,7 @@ async def run_bili_push():
                     logger.info(f"开始获取信息-{uid}")
                     url = 'https://api.vc.bilibili.com/dynamic_svr/v1/dynamic_svr/space_history?host_uid=' + uid
                     returnjson = connect_api("json", url)
-                    returncode = returnjson["code"]
-                    if returncode != 0:
+                    if returnjson["code"] != 0:
                         logger.error("bapi连接出错，请检查订阅uid是否正确")
                     else:
                         return_datas = returnjson["data"]
@@ -2841,7 +2868,7 @@ async def run_bili_push():
                                     # 3天：86400
                                     if time_distance < 86400:
                                         return_draw = get_draw(return_data)
-                                        if return_draw["code"] != 2:
+                                        if return_draw["code"] == 0:
                                             logger.info("不支持类型")
                                         else:
                                             draw_path = return_draw["draw_path"]
@@ -2852,10 +2879,11 @@ async def run_bili_push():
 
                                             message_body = message_body.replace("'", '"')
 
-                                            cursor.execute(f"replace into wait_push2(dynamicid,uid,draw_path,message_title,"
-                                                           f'message_url,message_body,message_images) values("{dynamicid}","{uid}",'
-                                                f'"{draw_path}","{message_title}","{message_url}",'+f"'{message_body}'"
-                                                f',"{message_images}")')
+                                            cursor.execute(
+                                                f"replace into wait_push2(dynamicid,uid,draw_path,message_title,"
+                                                f'message_url,message_body,message_images) values("{dynamicid}","{uid}",'
+                                                f'"{draw_path}","{message_title}","{message_url}",' + f"'{message_body}'"
+                                                                                                      f',"{message_images}")')
                             cursor.close()
                             conn.commit()
                             conn.close()
@@ -2968,8 +2996,7 @@ async def run_bili_push():
                                     returnpath = os.path.abspath('.') + '/cache/bili动态/'
                                     if not os.path.exists(returnpath):
                                         os.makedirs(returnpath)
-                                    random_num = str(random.randint(100000, 999999))
-                                    returnpath = returnpath + random_num + '.png'
+                                    returnpath = f"{returnpath}{date}_{timenow}_{random.randint(1000, 9999)}.png"
                                     draw_image.save(returnpath)
 
                                     # 写入数据
@@ -3043,7 +3070,7 @@ async def run_bili_push():
                             conn = sqlite3.connect(heartdb)
                             cursor = conn.cursor()
                             cursor.execute('replace into ' + groupcode + '(botid,permission) '
-                                           'values("' + botid + '","10")')
+                                                                         'values("' + botid + '","10")')
                             cursor.close()
                             conn.commit()
                             conn.close()
@@ -3188,12 +3215,14 @@ async def run_bili_push():
                                                 try:
                                                     if new_push is not True:
                                                         now_maximum_send -= 1
-                                                        await nonebot.get_bot(botid).send_private_msg(user_id=send_qq, message=msg)
+                                                        await nonebot.get_bot(botid).send_private_msg(user_id=send_qq,
+                                                                                                      message=msg)
                                                         logger.info("发送私聊成功")
                                                         await asyncio.sleep(stime)
                                                     if new_push is True and state != "0":  # 第一次推送且是下播时不推送
                                                         now_maximum_send -= 1
-                                                        await nonebot.get_bot(botid).send_private_msg(user_id=send_qq, message=msg)
+                                                        await nonebot.get_bot(botid).send_private_msg(user_id=send_qq,
+                                                                                                      message=msg)
                                                         logger.info("发送私聊成功")
                                                         await asyncio.sleep(stime)
                                                     conn = sqlite3.connect(livedb)
@@ -3206,8 +3235,9 @@ async def run_bili_push():
                                                     conn.close()
 
                                                 except Exception as e:
-                                                    logger.error('私聊内容发送失败：send_qq：' + str(send_qq) + ",message:" +
-                                                          message + ",retrnpath:" + returnpath)
+                                                    logger.error(
+                                                        '私聊内容发送失败：send_qq：' + str(send_qq) + ",message:" +
+                                                        message + ",retrnpath:" + returnpath)
                                             else:
                                                 logger.info("bot未入群")
 
@@ -3218,8 +3248,9 @@ async def run_bili_push():
                                                 try:
                                                     if new_push is not True:  # 第一次推送且是下播时不推送
                                                         now_maximum_send -= 1
-                                                        await nonebot.get_bot(botid).send_group_msg(group_id=send_groupcode,
-                                                                                               message=msg)
+                                                        await nonebot.get_bot(botid).send_group_msg(
+                                                            group_id=send_groupcode,
+                                                            message=msg)
                                                         logger.info("发送群聊成功")
                                                         await asyncio.sleep(stime)
                                                     if new_push is True and state != "0":  # 第一次推送且是下播时不推送
@@ -3239,7 +3270,8 @@ async def run_bili_push():
                                                     conn.close()
                                                 except Exception as e:
                                                     logger.error(
-                                                        '群聊内容发送失败：groupcode：' + str(send_groupcode) + ",message:"
+                                                        '群聊内容发送失败：groupcode：' + str(
+                                                            send_groupcode) + ",message:"
                                                         + message + ",retrnpath:" + returnpath)
                                             else:
                                                 logger.info("bot未入群")
