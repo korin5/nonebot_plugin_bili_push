@@ -46,7 +46,6 @@ def connect_api(type: str, url: str, post_json=None, file_path: str = None):
             logger.error(f"文件下载出错-{file_path}")
     return
 
-
 config = nonebot.get_driver().config
 # 读取配置
 # -》无需修改代码文件，请在“.env”文件中改。《-
@@ -68,7 +67,7 @@ config = nonebot.get_driver().config
 # bilipush_apiurl="http://cdn.kanon.ink"
 #
 # 配置4：
-# 是否使用api
+# 是否使用api来获取emoji图像
 # 为True时使用api，为False时不使用api，为空时自动选择。
 # bilipush_emojiapi=True
 #
@@ -442,7 +441,7 @@ def image_resize2(image, size: [int, int], overturn=False):
     return image_background
 
 
-def draw_text(text: str,
+def draw_text(texts: str,
               size: int,
               textlen: int = 20,
               fontfile: str = "",
@@ -454,7 +453,7 @@ def draw_text(text: str,
     """
     - 文字转图片
 
-    :param text: 输入的字符串
+    :param texts: 输入的字符串
     :param size: 文字尺寸
     :param textlen: 一行的文字数量
     :param fontfile: 字体文字
@@ -482,30 +481,30 @@ def draw_text(text: str,
     y_num = 0
     text_num = -1
     jump_num = 0
-    for fort in text:
+    for text in texts:
         text_num += 1
         if jump_num > 0:
             jump_num -= 1
         else:
             x_num += 1
             # 打印换行
-            if x_num > textlen or fort == "\n":
+            if x_num > textlen or text == "\n":
                 x_num = 0
                 y_num += 1.2
-                if fort == "\n":
+                if text == "\n":
                     x_num = -1
             biliemoji_name = ""
             if biliemoji_infos is not None:
                 # 检测biliemoji
-                if fort == "[":
+                if text == "[":
                     testnum = 0
                     while testnum <= 55:
                         testnum += 1
                         findnum = text_num + testnum
-                        if text[findnum] == "[":
+                        if texts[findnum] == "[":
                             testnum = 60
-                        elif text[findnum] == "]":
-                            biliemoji_name = "[" + text[text_num:findnum] + "]"
+                        elif texts[findnum] == "]":
+                            biliemoji_name = "[" + texts[text_num:findnum] + "]"
                             jump_num = len(biliemoji_name) - 1
                             testnum = 60
                 if biliemoji_name != "":
@@ -516,8 +515,8 @@ def draw_text(text: str,
                             emoji_url = emoji_info["url"]
                             x_num += 1
             if biliemoji_name == "":
-                if not is_emoji(fort):
-                    if fort in half_text:
+                if not is_emoji(text):
+                    if text in half_text:
                         x_num -= 0.4
 
     x = int((textlen + 1) * size)
@@ -543,7 +542,6 @@ def draw_text(text: str,
             if bbox is None:
                 return 0
             return bbox[2]
-        texts = text
         print_x = 0
         print_y = 0
         jump_num = 0
@@ -571,7 +569,6 @@ def draw_text(text: str,
                                 emoji_len = 60
                             elif texts[emoji_end] == "]":
                                 biliemoji_name = texts[text_num:emoji_end + 1]
-                                print(biliemoji_name)
                                 jump_num = emoji_len
                                 emoji_len = 60
                 if biliemoji_name is not None:
@@ -589,13 +586,15 @@ def draw_text(text: str,
                         paste_image = paste_image.resize((int(fortsize * 1.1), int(fortsize * 1.1)))
                         image.paste(paste_image, (int(print_x), int(print_y)), mask=paste_image)
                         print_x += fortsize
+                    elif text in ["\n", " "]:
+                        if text == " ":
+                            print_x += get_font_render_w(text) + 2
                     else:
                         draw_image.text(xy=(int(print_x), int(print_y)),
                                         text=text,
                                         fill=text_color,
                                         font=font)
                         print_x += get_font_render_w(text) + 2
-
     return image
 
 
@@ -605,7 +604,7 @@ def get_draw(data, only_info: bool = False):
     :param data: 动态的json数据
     :param only_info: 只绘制对应的up信息，用于关注的时候确认是否输错UID
     :return: {
-        "code": 状态，如果是0则为未支持的动态,
+        "code": 状态，如果是0则为出错，正常为2,
         "draw_path": 绘制的动态存放路径,
         "message_title": 动态的类型,
         "message_url": 动态的UID,
@@ -618,7 +617,7 @@ def get_draw(data, only_info: bool = False):
     date_month = str(time.strftime("%m", time.localtime()))
     date_day = str(time.strftime("%d", time.localtime()))
     timenow = str(time.strftime("%H-%M-%S", time.localtime()))
-    
+
     cachepath = basepath + f"cache/draw/{date_year}/{date_month}/{date_day}/"
     if not os.path.exists(cachepath):
         os.makedirs(cachepath)
@@ -662,6 +661,7 @@ def get_draw(data, only_info: bool = False):
         # 绘制基础信息
         def draw_info():
             vipStatus = data["desc"]["user_profile"]["vip"]["vipStatus"]
+
             def draw_decorate_card():
                 decorate_card = data["desc"]["user_profile"]["decorate_card"]["card_url"]
                 card_type = data["desc"]["user_profile"]["decorate_card"]["card_type"]
@@ -744,6 +744,7 @@ def get_draw(data, only_info: bool = False):
 
             paste_image = Image.new("RGBA", (10, 10), (0, 0, 0, 0))
             return paste_image
+
         # ### 绘制动态 #####################
         # 绘制名片
         if only_info:
@@ -808,11 +809,6 @@ def get_draw(data, only_info: bool = False):
                     message_images.append(origin_data["pic"])
                 logger.info("bili-push_draw_18_开始绘图")
                 if run:
-                    fortsize = 30
-                    font = ImageFont.truetype(font=fontfile, size=fortsize)
-                    origin_fortsize = 27
-                    origin_font = ImageFont.truetype(font=fontfile, size=origin_fortsize)
-
                     image_x = 900
                     image_y = 140  # add base y
                     image_y += 125 + 35  # add hear and space
@@ -1100,7 +1096,7 @@ def get_draw(data, only_info: bool = False):
                     image_y += h
                     # 添加转发内容
                     origin_len_y = 120 + 60
-                    # add message
+                    # 添加转发内容
                     paste_image = draw_text(origin_message,
                                             size=27,
                                             textlen=24,
@@ -1120,7 +1116,7 @@ def get_draw(data, only_info: bool = False):
                             y = int(718 * h / w)
                             addimage = addimage.resize((x, y))
                             w = 718
-                            h = int(w * 1.8)
+                            h = 1292  # int(w * 1.8)
                         elif h / w <= 0.5:
                             y = 359
                             x = int(359 / h * w)
@@ -1278,11 +1274,6 @@ def get_draw(data, only_info: bool = False):
                         message_body = message_body[0:79] + "…"
                 logger.info("bili-push_draw_14_开始绘图")
                 if run:
-                    fortsize = 30
-                    font = ImageFont.truetype(font=fontfile, size=fortsize)
-                    origin_fortsize = 27
-                    origin_font = ImageFont.truetype(font=fontfile, size=origin_fortsize)
-
                     image_x = 900
                     image_y = 140  # add base y
                     image_y += 125 + 35  # add hear and space
@@ -1393,11 +1384,6 @@ def get_draw(data, only_info: bool = False):
                         message_body = message_body[0:79] + "…"
                 logger.info("bili-push_开始绘图")
                 if run:
-                    fortsize = 30
-                    font = ImageFont.truetype(font=fontfile, size=fortsize)
-                    origin_fortsize = 27
-                    origin_font = ImageFont.truetype(font=fontfile, size=origin_fortsize)
-
                     image_x = 900
                     image_y = 140  # add base y
                     image_y += 125 + 35  # add hear and space
@@ -1518,11 +1504,6 @@ def get_draw(data, only_info: bool = False):
                         message_body = message_body[0:79] + "…"
                 logger.info("bili-push_开始绘图")
                 if run:
-                    fortsize = 30
-                    font = ImageFont.truetype(font=fontfile, size=fortsize)
-                    origin_fortsize = 27
-                    origin_font = ImageFont.truetype(font=fontfile, size=origin_fortsize)
-
                     image_x = 900
                     image_y = 140  # add base y
                     image_y += 125 + 35  # add hear and space
@@ -1611,11 +1592,6 @@ def get_draw(data, only_info: bool = False):
                         message_body = message_body[0:79] + "…"
                 logger.info("bili-push_开始绘图")
                 if run:
-                    fortsize = 30
-                    font = ImageFont.truetype(font=fontfile, size=fortsize)
-                    origin_fortsize = 27
-                    origin_font = ImageFont.truetype(font=fontfile, size=origin_fortsize)
-
                     image_x = 900
                     image_y = 140  # add base y
                     image_y += 125 + 35  # add hear and space
@@ -1629,7 +1605,7 @@ def get_draw(data, only_info: bool = False):
                     image_y += h
                     # 添加转发内容
                     origin_len_y = 403 + 90
-                    # add message
+                    # 添加内容长度
                     paste_image = draw_text(origin_title,
                                             size=27,
                                             textlen=24,
@@ -2252,7 +2228,7 @@ get_new = on_command("最新动态", aliases={'添加订阅', '删除订阅', '�
 
 @get_new.handle()
 async def bili_push_command(bot: Bot, messageevent: MessageEvent):
-    logger.info("bili_push_command_0.1.37")
+    logger.info("bili_push_command_0.1.37.2")
     botid = str(bot.self_id)
     bot_type = nonebot.get_bot(botid).type
     if bot_type != "OneBot V11":
@@ -2517,8 +2493,7 @@ async def bili_push_command(bot: Bot, messageevent: MessageEvent):
 
                 conn = sqlite3.connect(livedb)
                 cursor = conn.cursor()
-                cursor.execute(
-                    "SELECT * FROM subscriptionlist2 WHERE uid = " + uid + " AND groupcode = '" + groupcode + "'")
+                cursor.execute(f"SELECT * FROM subscriptionlist2 WHERE uid = {uid} AND groupcode = '{groupcode}'")
                 subscription = cursor.fetchone()
                 cursor.close()
                 conn.commit()
@@ -2579,13 +2554,12 @@ async def bili_push_command(bot: Bot, messageevent: MessageEvent):
     else:
         await get_new.finish()
 
-
 minute = "*/" + waittime
 
 
 @scheduler.scheduled_job("cron", minute=minute, id="job_0")
 async def run_bili_push():
-    logger.info("bili_push_0.1.37")
+    logger.info("bili_push_0.1.37.2")
     # ############开始自动运行插件############
     now_maximum_send = maximum_send
     import time
@@ -2910,8 +2884,7 @@ async def run_bili_push():
                         if group_data is None:
                             conn = sqlite3.connect(heartdb)
                             cursor = conn.cursor()
-                            cursor.execute('replace into ' + groupcode + '(botid,permission) '
-                                                                         'values("' + botid + '","10")')
+                            cursor.execute(f'replace into {groupcode}(botid,permission) values("{botid}","10")')
                             cursor.close()
                             conn.commit()
                             conn.close()
@@ -2947,7 +2920,7 @@ async def run_bili_push():
                                     conn.commit()
                                     conn.close()
                         if send is False:
-                            logger.info("该订阅由另一个bot进行推送，如出现没有推送的情况，请删除heart.db")
+                            logger.info("该订阅由另一个bot进行推送，本bot将不发送消息")
                     if "p" in groupcode:
                         groupcode = groupcode.removeprefix("gp")
                         if groupcode not in friendlist:
@@ -2971,8 +2944,7 @@ async def run_bili_push():
                             if data[1] != "sqlite_sequence":
                                 tables.append(data[1])
                         if groupcode not in tables:
-                            cursor.execute(f"create table {groupcode} "
-                                           f"(dynamicid int(10) primary key, uid varchar(10))")
+                            cursor.execute(f"create table {groupcode} (dynamicid int(10) primary key, uid varchar(10))")
                         # 获取已推送的状态
                         cursor.execute(f"SELECT * FROM {groupcode} WHERE dynamicid = 'live{uid}'")
                         pushed_datas = cursor.fetchone()
@@ -3073,9 +3045,8 @@ async def run_bili_push():
                                                     conn.close()
 
                                                 except Exception as e:
-                                                    logger.error(
-                                                        '私聊内容发送失败：send_qq：' + str(send_qq) + ",message:" +
-                                                        message + ",retrnpath:" + returnpath)
+                                                    logger.error(f'私聊内容发送失败：send_qq：{send_qq},message:{message},'
+                                                                 f'retrnpath:{returnpath}')
                                             else:
                                                 logger.info("bot未入群")
 
@@ -3108,9 +3079,8 @@ async def run_bili_push():
                                                     conn.close()
                                                 except Exception as e:
                                                     logger.error(
-                                                        '群聊内容发送失败：groupcode：' + str(
-                                                            send_groupcode) + ",message:"
-                                                        + message + ",retrnpath:" + returnpath)
+                                                        f"群聊内容发送失败：groupcode：{send_groupcode},message:{message}"
+                                                        f",retrnpath:{returnpath}")
                                             else:
                                                 logger.info("bot未入群")
 
@@ -3346,7 +3316,6 @@ async def run_bili_push():
                                     logger.info("bot未入群")
                             else:
                                 send_groupcode = groupcode.removeprefix("g")
-                                logger.info("groupcode:")
                                 if send_groupcode in grouplist:
                                     # bot已添加好友，发送消息
                                     try:
