@@ -213,7 +213,7 @@ try:
                     logger.error("读取动态推送样式出错，请检查配置是否正确")
             if cache_push_style != "":
                 logger.error("读取动态推送样式出错，请检查配置是否正确")
-                logger.error("正在读取默认配置")
+                logger.error("正在读取默认配置[绘图][标题][链接]")
                 push_style = "[绘图][标题][链接]"
         except Exception as e:
             logger.error("读取动态推送样式出错，请检查配置是否正确")
@@ -283,7 +283,8 @@ def get_emoji(emoji: str):
                 return_image = connect_api("image", url)
                 return_image.save(cachepath)
             except Exception as e:
-                logger.info("api出错，请联系开发者")
+                logger.error("api出错，请联系开发者")
+                logger.error(url)
                 # api出错时直接打印文字
                 return_image = Image.new("RGBA", (100, 100), color=(0, 0, 0, 0))
                 paste_image = draw_text(emoji, 100, 10)
@@ -307,16 +308,19 @@ def is_emoji(emoji):
     if not use_api:
         return False
     try:
+        is_emoji = False
         conn = sqlite3.connect(get_file_path("emoji_1.db"))
         cursor = conn.cursor()
-        cursor.execute('select * from emoji where emoji = "' + emoji + '"')
-        data = cursor.fetchone()
+        try:
+            cursor.execute('select * from emoji where emoji = "' + emoji + '"')
+            data = cursor.fetchone()
+            if data is not None:
+                is_emoji = True
+        except Exception as e:
+            pass
         cursor.close()
         conn.close()
-        if data is not None:
-            return True
-        else:
-            return False
+        return is_emoji
     except Exception as e:
         return False
 
@@ -442,6 +446,7 @@ def draw_text(text: str,
               size: int,
               textlen: int = 20,
               fontfile: str = "",
+              text_color = "#000000",
               biliemoji_infos=None,
               draw_qqemoji=False,
               calculate=False
@@ -453,6 +458,7 @@ def draw_text(text: str,
     :param size: 文字尺寸
     :param textlen: 一行的文字数量
     :param fontfile: 字体文字
+    :param text_color: 字体颜色，例："#FFFFFF"、(10, 10, 10)
     :param biliemoji_infos: 识别emoji
     :param draw_qqemoji: 识别qqemoji
     :param calculate: 计算长度。True时只返回空白图，不用粘贴文字，加快速度。
@@ -521,7 +527,7 @@ def draw_text(text: str,
     draw_image = ImageDraw.Draw(image)
 
     # 绘制文字
-    if not calculate:
+    if calculate is False:
         def get_font_render_w(text):
             if text == " ":
                 return 20
@@ -537,7 +543,6 @@ def draw_text(text: str,
             if bbox is None:
                 return 0
             return bbox[2]
-
         texts = text
         print_x = 0
         print_y = 0
@@ -587,7 +592,7 @@ def draw_text(text: str,
                     else:
                         draw_image.text(xy=(int(print_x), int(print_y)),
                                         text=text,
-                                        fill=(0, 0, 0),
+                                        fill=text_color,
                                         font=font)
                         print_x += get_font_render_w(text) + 2
 
@@ -657,7 +662,6 @@ def get_draw(data, only_info: bool = False):
         # 绘制基础信息
         def draw_info():
             vipStatus = data["desc"]["user_profile"]["vip"]["vipStatus"]
-
             def draw_decorate_card():
                 decorate_card = data["desc"]["user_profile"]["decorate_card"]["card_url"]
                 card_type = data["desc"]["user_profile"]["decorate_card"]["card_type"]
@@ -687,7 +691,6 @@ def get_draw(data, only_info: bool = False):
                     image = Image.new("RGBA", (x + 50, y), (0, 0, 0, 0))
                     image.paste(paste_image, (50, 0), mask=paste_image)
                 return image
-
             # 绘制头像名称等信息
             image = Image.new("RGBA", (900, 230), (0, 0, 0, 0))
             draw = ImageDraw.Draw(image)
@@ -736,6 +739,11 @@ def get_draw(data, only_info: bool = False):
 
             return image
 
+        # 绘制话题标签
+        def draw_topic():
+
+            paste_image = Image.new("RGBA", (10, 10), (0, 0, 0, 0))
+            return paste_image
         # ### 绘制动态 #####################
         # 绘制名片
         if only_info:
@@ -1920,68 +1928,14 @@ def get_draw(data, only_info: bool = False):
                 draw_image.paste(image_info, (0, 0), mask=image_info)
 
                 # 添加动态内容
-                x = 75
-                y = 230
-                print_x = -1
-                print_y = 0
-                num = 0
-                jump_num = 0
-
-                textnum = 0
-                for text in card_message:
-                    if jump_num > 0:
-                        jump_num -= 1
-                    else:
-                        print_x += 1
-                        textnum += 1
-                        num += 1
-                        # 打印换行
-                        if num > 25 or text == "\n":
-                            num = 1
-                            print_y += 1.2
-                            print_x = 0
-                            if text == "\n":
-                                print_x = -1
-
-                        # 检测biliemoji
-                        emoji_code = ""
-                        if text == "[":
-                            testnum = 1
-                            while testnum <= 55:
-                                testnum += 1
-                                findnum = textnum + testnum
-                                if card_message[findnum] == "]":
-                                    emoji_code = "[" + card_message[textnum:findnum] + "]"
-                                    jump_num = len(emoji_code) - 1
-                                    testnum = 60
-                            if emoji_code != "":
-                                # 粘贴biliemoji
-                                for emoji_info in emoji_infos:
-                                    emoji_name = emoji_info["emoji_name"]
-                                    if emoji_name == emoji_code:
-                                        emoji_url = emoji_info["url"]
-                                        paste_image = connect_api("image", emoji_url)
-                                        paste_image = paste_image.resize((int(fortsize * 1.2), int(fortsize * 1.2)))
-                                        draw_image.paste(paste_image,
-                                                         (int(x + print_x * fortsize), int(y + print_y * fortsize)))
-                                        print_x += 0.5
-
-                        if emoji_code == "":
-                            # 检测是否半格字符
-                            if not is_emoji(text):
-                                # 打印文字
-                                draw.text(xy=(int(x + print_x * fortsize), int(y + print_y * fortsize)), text=text,
-                                          fill=(0, 0, 0), font=font)
-                                if text in half_text:
-                                    print_x -= 0.4
-                            else:
-                                # 打印表情
-                                paste_image = get_emoji(text)
-                                paste_image = paste_image.resize((int(fortsize * 1.1), int(fortsize * 1.1)))
-                                draw_image.paste(paste_image,
-                                                 (int(x + print_x * fortsize), int(y + print_y * fortsize)))
-
-                y = int(y + (print_y + 1.5) * fortsize)
+                paste_image = draw_text(card_message,
+                                        size=30,
+                                        textlen=24,
+                                        biliemoji_infos=emoji_infos,
+                                        calculate=False)
+                draw_image.paste(paste_image, (75, 230), mask=paste_image)
+                w, h = paste_image.size
+                y = 240 + h
                 x = 65
                 # 添加视频消息边沿
                 paste_image = Image.new("RGB", (776, 204), "#FFFFFF")
@@ -2003,137 +1957,27 @@ def get_draw(data, only_info: bool = False):
                 y += 15
                 if len(card_title) > 26:
                     card_title = card_title[0:26] + "…"
-
-                print_x = -1
-                print_y = 0
-                num = 0
-                jump_num = 0
-                cache_font = ImageFont.truetype(font=fontfile, size=27)
-
-                textnum = 0
-                for text in card_title:
-                    if jump_num > 0:
-                        jump_num -= 1
-                    else:
-                        print_x += 1
-                        textnum += 1
-                        num += 1
-                        # 打印换行
-                        if num > 14 or text == "\n":
-                            num = 1
-                            print_y += 1.2
-                            print_x = 0
-                            if text == "\n":
-                                print_x = -1
-
-                        # 检测biliemoji
-                        emoji_code = ""
-                        if text == "[":
-                            testnum = 1
-                            while testnum <= 55:
-                                testnum += 1
-                                findnum = textnum + testnum
-                                if card_message[findnum] == "]":
-                                    emoji_code = "[" + card_message[textnum:findnum] + "]"
-                                    jump_num = len(emoji_code) - 1
-                                    testnum = 60
-                            if emoji_code != "":
-                                # 粘贴biliemoji
-                                for emoji_info in emoji_infos:
-                                    emoji_name = emoji_info["emoji_name"]
-                                    if emoji_name == emoji_code:
-                                        emoji_url = emoji_info["url"]
-                                        paste_image = connect_api("image", emoji_url)
-                                        paste_image = paste_image.resize((int(fortsize * 1.2), int(fortsize * 1.2)))
-                                        draw_image.paste(paste_image,
-                                                         (int(x + print_x * fortsize), int(y + print_y * fortsize)))
-                                        print_x += 0.5
-
-                        if emoji_code == "":
-                            # 检测是否半格字符
-                            if not is_emoji(text):
-                                # 打印文字
-                                draw.text(xy=(int(x + print_x * fortsize), int(y + print_y * fortsize)), text=text,
-                                          fill=(0, 0, 0), font=cache_font)
-                                if text in half_text:
-                                    print_x -= 0.4
-                            else:
-                                # 打印表情
-                                paste_image = get_emoji(text)
-                                paste_image = paste_image.resize((int(fortsize * 1.1), int(fortsize * 1.1)))
-                                draw_image.paste(paste_image,
-                                                 (int(x + print_x * fortsize), int(y + print_y * fortsize)))
+                paste_image = draw_text(card_title,
+                                        size=27,
+                                        textlen=16,
+                                        biliemoji_infos=emoji_infos,
+                                        calculate=False)
+                draw_image.paste(paste_image, (x, y), mask=paste_image)
+                w, h = paste_image.size
 
                 # 添加视频简介
-                x += 313 + 15
                 y += 100
                 if len(card_vmessage) > 26:
                     card_vmessage = card_vmessage[0:26] + "…"
 
-                x = 65 + 2 + 313 + 15
-                print_x = -1
-                print_y = 0
-                num = 0
-                jump_num = 0
-                cache_font = ImageFont.truetype(font=fontfile, size=24)
-
-                textnum = 0
-                for text in card_vmessage:
-                    if jump_num > 0:
-                        jump_num -= 1
-                    elif print_y > 2 and print_x >= 12:
-                        text = "…"
-                    else:
-                        if print_x == 11:
-                            text = "…"
-                        print_x += 1
-                        textnum += 1
-                        num += 1
-                        # 打印换行
-                        if num > 15 or text == "\n":
-                            num = 1
-                            print_y += 1.2
-                            print_x = 0
-                            if text == "\n":
-                                print_x = -1
-
-                        # 检测biliemoji
-                        emoji_code = ""
-                        if text == "[":
-                            testnum = 1
-                            while testnum <= 55:
-                                testnum += 1
-                                findnum = textnum + testnum
-                                if card_message[findnum] == "]":
-                                    emoji_code = "[" + card_message[textnum:findnum] + "]"
-                                    jump_num = len(emoji_code) - 1
-                                    testnum = 60
-                            if emoji_code != "":
-                                # 粘贴biliemoji
-                                for emoji_info in emoji_infos:
-                                    emoji_name = emoji_info["emoji_name"]
-                                    if emoji_name == emoji_code:
-                                        emoji_url = emoji_info["url"]
-                                        paste_image = connect_api("image", emoji_url)
-                                        paste_image = paste_image.resize((int(fortsize * 1.2), int(fortsize * 1.2)))
-                                        draw_image.paste(paste_image,
-                                                         (int(x + print_x * fortsize), int(y + print_y * fortsize)))
-                                        print_x += 0.5
-
-                        if emoji_code == "":
-                            # 检测是否半格字符
-                            if not is_emoji(text):
-                                # 打印文字
-                                draw.text(xy=(int(x + print_x * fortsize), int(y + print_y * fortsize)), text=text,
-                                          fill=(100, 100, 100), font=cache_font)
-                                if text in half_text:
-                                    print_x -= 0.4
-                            else:
-                                # 打印表情
-                                paste_image = get_emoji(text)
-                                paste_image = paste_image.resize((int(fortsize * 1.1), int(fortsize * 1.1)))
-                                draw_image.paste(paste_image,
-                                                 (int(x + print_x * fortsize), int(y + print_y * fortsize)))
+                paste_image = draw_text(card_vmessage,
+                                        size=25,
+                                        textlen=17,
+                                        text_color="#646464",
+                                        biliemoji_infos=emoji_infos,
+                                        calculate=False)
+                draw_image.paste(paste_image, (x, y), mask=paste_image)
+                w, h = paste_image.size
 
                 returnpath = cachepath + 'bili动态/'
                 if not os.path.exists(returnpath):
@@ -2400,7 +2244,7 @@ def get_draw(data, only_info: bool = False):
         "message_url": message_url,
         "message_body": message_body,
         "message_images": message_images
-    }
+        }
 
 
 get_new = on_command("最新动态", aliases={'添加订阅', '删除订阅', '查看订阅', '帮助'}, block=False)
@@ -2606,7 +2450,7 @@ async def bili_push_command(bot: Bot, messageevent: MessageEvent):
 
                     # 将历史动态存到数据库中
                     logger.info('关注成功，将历史动态存到数据库中')
-                    url = 'https://api.vc.bilibili.com/dynamic_svr/v1/dynamic_svr/space_history?host_uid=' + uid
+                    url = f"https://api.vc.bilibili.com/dynamic_svr/v1/dynamic_svr/space_history?host_uid={uid}"
                     returnjson = connect_api("json", url)
                     returncode = returnjson["code"]
                     if returncode == 0:
@@ -2614,22 +2458,22 @@ async def bili_push_command(bot: Bot, messageevent: MessageEvent):
                         # 获取动态id并保存
                         if returnjson["data"]["has_more"] == 1:
                             return_datas = returnjson["data"]["cards"]
-                            try:
-                                conn = sqlite3.connect(livedb)
-                                cursor = conn.cursor()
-                                cursor.execute('create table ' + groupcode +
-                                               '(dynamicid int(10) primary key, uid varchar(10))')
-                                cursor.close()
-                                conn.commit()
-                                conn.close()
-                            except Exception as e:
-                                logger.info("已存在群推送列表，开始读取数据库")
+
                             conn = sqlite3.connect(livedb)
                             cursor = conn.cursor()
+                            # 数据库列表转为序列
+                            cursor.execute("SELECT * FROM sqlite_master WHERE type='table'")
+                            datas = cursor.fetchall()
+                            tables = []
+                            for data in datas:
+                                if data[1] != "sqlite_sequence":
+                                    tables.append(data[1])
+                            if groupcode not in tables:
+                                cursor.execute(f'create table {groupcode}'
+                                               f'(dynamicid int(10) primary key, uid varchar(10))')
                             for return_data in return_datas:
                                 dynamicid = str(return_data["desc"]["dynamic_id"])
-                                cursor.execute(
-                                    "replace into " + groupcode + "(dynamicid,uid) values('" + dynamicid + "','" + uid + "')")
+                                cursor.execute(f"replace into {groupcode}(dynamicid,uid) values('{dynamicid}','{uid}')")
                             cursor.close()
                             conn.commit()
                             conn.close()
@@ -2864,8 +2708,9 @@ async def run_bili_push():
                                     dyma_data = return_data["desc"]["timestamp"]
                                     now = int(time.time())
                                     time_distance = now - dyma_data
-                                    # 不推送3天以前的动态
-                                    # 3天：86400
+                                    # 不推送24小时以前的动态
+                                    # 1天：86400
+                                    # 啊？我之前怎么把86400秒当成3天啊？还一直没发现
                                     if time_distance < 86400:
                                         return_draw = get_draw(return_data)
                                         if return_draw["code"] == 0:
@@ -3029,7 +2874,7 @@ async def run_bili_push():
             conn.close()
 
             if not subscriptions:
-                print("无订阅")
+                logger.info("无订阅")
             else:
                 for subscription in subscriptions:
                     groupcode = subscription[1]
@@ -3039,33 +2884,29 @@ async def run_bili_push():
                     if config_botswift:
                         # 读取主bot
                         send = False
-                        try:
-                            # 数据库文件 如果文件不存在，会自动在当前目录中创建
-                            conn = sqlite3.connect(heartdb)
-                            cursor = conn.cursor()
-                            cursor.execute(
-                                'create table ' + groupcode + '(botid VARCHAR(10) primary key, permission VARCHAR(20))')
-                            cursor.close()
-                            conn.close()
-                        except Exception as e:
-                            print('已存在心跳数据库，开始读取数据')
-                        try:
-                            # 数据库文件 如果文件不存在，会自动在当前目录中创建
-                            conn = sqlite3.connect(heartdb)
-                            cursor = conn.cursor()
-                            cursor.execute(
-                                'create table heart(botid VARCHAR(10) primary key, '
-                                'breattime VARCHAR(10), number VARCHAR(10))')
-                            cursor.close()
-                            conn.close()
-                        except Exception as e:
-                            print('已存在心跳数据库，开始读取数据')
+
                         conn = sqlite3.connect(heartdb)
                         cursor = conn.cursor()
-                        cursor.execute('SELECT * FROM ' + groupcode + ' WHERE permission = "10"')
+                        # 数据库列表转为序列
+                        cursor.execute("SELECT * FROM sqlite_master WHERE type='table'")
+                        datas = cursor.fetchall()
+                        tables = []
+                        for data in datas:
+                            if data[1] != "sqlite_sequence":
+                                tables.append(data[1])
+                        if groupcode not in tables:
+                            cursor.execute(
+                                f'create table {groupcode}(botid VARCHAR(10) primary key, permission VARCHAR(20))')
+                        if "heart" not in tables:
+                            cursor.execute(
+                                'create table heart(botid VARCHAR(10) primary key, breattime VARCHAR(10), '
+                                'number VARCHAR(10))')
+                        cursor.execute(f'SELECT * FROM {groupcode} WHERE permission = "10"')
                         group_data = cursor.fetchone()
                         cursor.close()
+                        conn.commit()
                         conn.close()
+
                         if group_data is None:
                             conn = sqlite3.connect(heartdb)
                             cursor = conn.cursor()
@@ -3105,7 +2946,8 @@ async def run_bili_push():
                                     cursor.close()
                                     conn.commit()
                                     conn.close()
-
+                        if send is False:
+                            logger.info("该订阅由另一个bot进行推送，如出现没有推送的情况，请删除heart.db")
                     if "p" in groupcode:
                         groupcode = groupcode.removeprefix("gp")
                         if groupcode not in friendlist:
@@ -3118,32 +2960,28 @@ async def run_bili_push():
                         groupcode = "g" + groupcode
 
                     if send:
-                        try:
-                            # 缓存文件，存储待发送动态 如果文件不存在，会自动在当前目录中创建
-                            conn = sqlite3.connect(livedb)
-                            cursor = conn.cursor()
-                            cursor.execute(
-                                "create table " + groupcode + " (dynamicid int(10) primary key, uid varchar(10))")
-                            cursor.close()
-                            conn.close()
-                        except Exception as e:
-                            logger.info('已存在群订阅数据库，开始读取数据')
-
-                        # 获取已推送的状态
+                        # 缓存文件，存储待发送动态 如果文件不存在，会自动在当前目录中创建
                         conn = sqlite3.connect(livedb)
                         cursor = conn.cursor()
-                        cursor.execute("SELECT * FROM " + groupcode + " WHERE dynamicid = 'live" + uid + "'")
+                        # 数据库列表转为序列
+                        cursor.execute("SELECT * FROM sqlite_master WHERE type='table'")
+                        datas = cursor.fetchall()
+                        tables = []
+                        for data in datas:
+                            if data[1] != "sqlite_sequence":
+                                tables.append(data[1])
+                        if groupcode not in tables:
+                            cursor.execute(f"create table {groupcode} "
+                                           f"(dynamicid int(10) primary key, uid varchar(10))")
+                        # 获取已推送的状态
+                        cursor.execute(f"SELECT * FROM {groupcode} WHERE dynamicid = 'live{uid}'")
                         pushed_datas = cursor.fetchone()
-                        cursor.close()
-                        conn.commit()
-
                         # 获取最新动态
-                        sqlite3.connect(livedb)
-                        cursor = conn.cursor()
-                        cursor.execute("SELECT * FROM 'livelist3' WHERE uid = '" + uid + "'")
+                        cursor.execute(f"SELECT * FROM 'livelist3' WHERE uid = '{uid}'")
                         datas = cursor.fetchone()
                         cursor.close()
                         conn.commit()
+                        conn.close()
 
                         if datas is not None:
                             state = datas[1]
@@ -3299,38 +3137,33 @@ async def run_bili_push():
                     if config_botswift:
                         # 读取主bot
                         send = False
-                        try:
-                            # 数据库文件 如果文件不存在，会自动在当前目录中创建
-                            conn = sqlite3.connect(heartdb)
-                            cursor = conn.cursor()
-                            cursor.execute(
-                                'create table ' + groupcode + '(botid VARCHAR(10) primary key, permission VARCHAR(20))')
-                            cursor.close()
-                            conn.close()
-                        except Exception as e:
-                            logger.info('已存在心跳数据库，开始读取数据')
-                        try:
-                            # 数据库文件 如果文件不存在，会自动在当前目录中创建
-                            conn = sqlite3.connect(heartdb)
-                            cursor = conn.cursor()
-                            cursor.execute(
-                                'create table heart(botid VARCHAR(10) primary key, '
-                                'breattime VARCHAR(10), number VARCHAR(10))')
-                            cursor.close()
-                            conn.close()
-                        except Exception as e:
-                            print('已存在心跳数据库，开始读取数据')
+
                         conn = sqlite3.connect(heartdb)
                         cursor = conn.cursor()
-                        cursor.execute('SELECT * FROM ' + groupcode + ' WHERE permission = "10"')
+                        # 数据库列表转为序列
+                        cursor.execute("SELECT * FROM sqlite_master WHERE type='table'")
+                        datas = cursor.fetchall()
+                        tables = []
+                        for data in datas:
+                            if data[1] != "sqlite_sequence":
+                                tables.append(data[1])
+                        if groupcode not in tables:
+                            cursor.execute(
+                                f'create table {groupcode}(botid VARCHAR(10) primary key, permission VARCHAR(20))')
+                        if "heart" not in tables:
+                            cursor.execute(
+                                'create table heart(botid VARCHAR(10) primary key, breattime VARCHAR(10), '
+                                'number VARCHAR(10))')
+                        cursor.execute(f'SELECT * FROM {groupcode} WHERE permission = "10"')
                         group_data = cursor.fetchone()
                         cursor.close()
+                        conn.commit()
                         conn.close()
+
                         if group_data is None:
                             conn = sqlite3.connect(heartdb)
                             cursor = conn.cursor()
-                            cursor.execute(
-                                'replace into ' + groupcode + '(botid,permission) values("' + botid + '","10")')
+                            cursor.execute(f'replace into {groupcode}(botid,permission) values("{botid}","10")')
                             cursor.close()
                             conn.commit()
                             conn.close()
@@ -3378,35 +3211,32 @@ async def run_bili_push():
                         groupcode = "g" + groupcode
 
                     if send:
-                        try:
-                            # 缓存文件，存储待发送动态 如果文件不存在，会自动在当前目录中创建
-                            conn = sqlite3.connect(livedb)
-                            cursor = conn.cursor()
-                            cursor.execute(
-                                "create table " + groupcode + " (dynamicid int(10) primary key, uid varchar(10))")
-                            cursor.close()
-                            conn.close()
-                        except Exception as e:
-                            logger.info('已存在订阅数据库，开始读取数据')
-
-                        # 获取已推送的动态列表
                         conn = sqlite3.connect(livedb)
                         cursor = conn.cursor()
+
+                        cursor.execute("SELECT * FROM sqlite_master WHERE type='table'")
+                        datas = cursor.fetchall()
+                        # 数据库列表转为序列
+                        tables = []
+                        for data in datas:
+                            if data[1] != "sqlite_sequence":
+                                tables.append(data[1])
+                        if groupcode not in tables:
+                            cursor.execute(f"create table {groupcode} (dynamicid int(10) primary key, uid varchar(10))")
+                        # 获取已推送的动态列表
                         cursor.execute("SELECT * FROM " + groupcode + " WHERE uid = " + uid)
                         pushed_datas = cursor.fetchall()
-                        cursor.close()
-                        conn.commit()
-                        dynamicids = []
-                        for data in pushed_datas:
-                            dynamicids.append(str(data[0]))
-
                         # 获取新动态列表
-                        sqlite3.connect(livedb)
-                        cursor = conn.cursor()
                         cursor.execute("SELECT * FROM 'wait_push2' WHERE uid = '" + uid + "'")
                         datas = cursor.fetchall()
                         cursor.close()
                         conn.commit()
+                        conn.close()
+
+                        # 计算未推送动态列表
+                        dynamicids = []
+                        for data in pushed_datas:
+                            dynamicids.append(str(data[0]))
 
                         new_dynamicids = []
                         for data in datas:
