@@ -9,7 +9,7 @@ B 订阅推送插件
 
 ## 安装
 
-（以下方法三选一）
+（以下方法二选一）
 
 一.命令行安装：
 
@@ -21,17 +21,15 @@ nb plugin install nonebot-plugin-bili-push
 
 1.执行此命令
 
-    pip install nonebot-plugin-bili-push
+```python
+pip install nonebot-plugin-bili-push
+```
 
 2.修改 pyproject.toml 使其可以加载插件
 
-    plugins = [”nonebot-plugin-bili-push“]
-
-三.使用插件文件安装：（不推荐）
-
-1.下载插件文件，放到 plugins 文件夹。
-
-2.修改 pyproject.toml 使其可以加载插件
+```python
+plugins = [”nonebot-plugin-bili-push“]
+```
 
 ## 配置
 
@@ -94,9 +92,28 @@ bilipush_maximum_send=5
 
     bilipush_apiurl="http://cdn.kanon.ink"
 
+群内配置项（beta）：
+
+（正在内测功能，并未正式上线
+
+```markup
+[g123456789]
+# 设置的群号
+bilipush_push_style="[绘图][标题][链接]"
+# 配置项。如不存在则按照默认配置
+```
+
 ## To-Do
 
 🔵 接下来：
+
+- [ ] 配置仅直播推送或仅动态推送（接下来更新）
+
+- [ ] 开播添加 at 全体成员（接下来更新）
+
+- [ ] 对话式配置（接下来更新）
+
+- [ ] 推送黑名单（识别到文字或类型的时候不进行推送）
 
 - [ ] 完善动态类型（目前仅支持文字、图文、视频、转发、文章）
 
@@ -108,19 +125,9 @@ bilipush_maximum_send=5
 
 - [ ] 添加动态底部相关的内容绘制（游戏、动漫、视频）
 
-- [ ] 升级数据库"
-
 - [ ] 版面优化
 
-- [ ] 优化 print（）
-
-- [ ] 代码整理
-
 - [ ] 增加多种适配器连接
-
-- [ ] 推送黑名单（识别到文字或类型的时候不进行推送）
-
-- [ ] ~~对话式配置（暂不考虑~~
 
 - [ ] ~~将请求 api 改为异步（无限期延迟~~
 
@@ -128,35 +135,17 @@ bilipush_maximum_send=5
 
 - [x] 对海外服务器支持
 
-- [x] 头像过大
-
-- [x] 动态卡片非粉丝的位置
-
-- [x] 直播无 url
-
-- [x] 动态卡片数字样式
-
 - [x] 动态获取不到名字，导致关注报错
 
 - [x] 配置推送样式
 
-- [x] 添加各种装饰（头像框、装扮等）
-
 - [x] 修复文件下载出错导致文件加载报错
-
-- [x] 无动态时自动跳过
-
-- [x] 关注时获取信息检查，防止输错 uid
 
 - [x] 设置默认字体。在禁用 api 时候使用默认字体
 
 - [x] 单 nb 对接多 q 的兼容
 
-- [x] 增加上下播推送
-
-- [x] 添加本地计算 emoji 模式
-
-## 参考内容
+## 灵感来源
 
 Mirai 动态绘制插件 [BilibiliDynamic MiraiPlugin](https://github.com/Colter23/bilibili-dynamic-mirai-plugin)
 
