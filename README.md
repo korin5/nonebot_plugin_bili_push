@@ -43,65 +43,7 @@ plugins = [”nonebot-plugin-bili-push“]
 
     bilipush_basepath="./"
 
-3.推送样式
-
-> 动态的推送样式
-> 可配置选项：\[绘图]\[标题]\[链接]\[内容]\[图片]
-
-    bilipush_push_style="[绘图][标题][链接]"
-
-4.刷新间隔：
-
-> 每次刷新间隔多少分钟，默认为 12 分钟。
-
-    bilipush_waittime=12
-
-5.发送间隔：
-
-> 每次发送完成后等待的时间，单位秒，默认 10-30 秒。
-> 时间为设置的时间再加上随机延迟 1-20 秒
-
-    bilipush_sleeptime=10
-
-6.最大发送数量
-
-> 限制单次发送数量，防止一次性发送太多图导致风控。
-> 默认 5 条
-
-```
-bilipush_maximum_send=5
-
-```
-
-其他配置项
-
-> 只响应一个 bot
-> 一个群内有多个 bot，可以只让 1 个 bot 推送消息。
-> 默认为关闭该功能，既所有 bot 都会响应
-> （正在考虑是否改为默认开启，如不需要请关闭该功能）
-
-    bilipush_botswift=False
-
-> 是否使用花音的 api 来支持更丰富的内容
->
-> 默认开启。如出现连接不上或其他故障，请尝试关闭。
-
-    bilipush_emojiapi=True
-
-> 配置 api 地址，如未填写则使用默认地址。
-
-    bilipush_apiurl="http://cdn.kanon.ink"
-
-群内配置项（beta）：
-
-（正在内测功能，并未正式上线
-
-```markup
-[g123456789]
-# 设置的群号
-bilipush_push_style="[绘图][标题][链接]"
-# 配置项。如不存在则按照默认配置
-```
+详细配置方法- [详细配置](https://github.com/SuperGuGuGu/nonebot_plugin_bili_push/blob/master/Config.md)
 
 ## To-Do
 
