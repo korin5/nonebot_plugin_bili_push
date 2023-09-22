@@ -43,6 +43,12 @@ plugins = [”nonebot-plugin-bili-push“]
 
     bilipush_basepath="./"
 
+3.命令前缀，默认为"/"
+
+```markup
+COMMAND_START=["/"]
+```
+
 详细配置方法- [详细配置](https://github.com/SuperGuGuGu/nonebot_plugin_bili_push/blob/master/Config.md)
 
 ## To-Do

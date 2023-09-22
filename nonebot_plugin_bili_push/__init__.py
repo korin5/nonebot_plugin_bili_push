@@ -15,6 +15,7 @@ import json
 import sqlite3
 import random
 import time
+import toml
 
 require("nonebot_plugin_apscheduler")
 from nonebot_plugin_apscheduler import scheduler
@@ -240,6 +241,60 @@ if not os.path.exists(plugin_dbpath):
     os.makedirs(plugin_dbpath)
 livedb = plugin_dbpath + "bili_push.db"
 heartdb = plugin_dbpath + "heart.db"
+
+
+def plugin_config(config_name: str, groupcode: str):
+    """
+    读取群配置，如不存在则读取全局配置
+    :param config_name: 获取的配置名称
+    :param groupcode: 所在群号
+    :return: 配置内容
+    """
+    path = plugin_dbpath + "group_config.toml"
+
+    # 保存配置
+    def save_config():
+        with open(path, 'w') as config_file:
+            toml.dump(config, config_file)
+
+    # 如不存在配置文件，则新建一个
+    if not os.path.exists(path):
+        config = {"Group_Config":
+                      {"nonebot_plugin_bili_push": "https://github.com/SuperGuGuGu/nonebot_plugin_bili_push"}
+                  }
+        save_config()
+        logger.info("未存在群配置文件，正在创建")
+
+    # 读取配置
+    config = toml.load(path)
+
+    # 如果有匹配项，则返回对应设置
+    if groupcode in list(config):
+        if config_name in list(config[groupcode]):
+            return config[groupcode][config_name]
+
+    # 如果无匹配项，则返回全局设置
+    if config_name == "group_admin":
+        return adminqq
+    elif config_name == "bilipush_push_style":
+        return push_style
+    elif config_name == "at_all":
+        return  False
+    elif config_name == "command_starts":
+        return  command_starts
+    elif config_name == "none":
+        pass
+    elif config_name == "none":
+        pass
+    elif config_name == "none":
+        pass
+    elif config_name == "none":
+        pass
+    elif config_name == "none":
+        pass
+    elif config_name == "none":
+        pass
+    return None
 
 
 def get_file_path(file_name):
