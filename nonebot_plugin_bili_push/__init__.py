@@ -47,6 +47,7 @@ def connect_api(type: str, url: str, post_json=None, file_path: str = None):
             logger.error(f"文件下载出错-{file_path}")
     return
 
+
 config = nonebot.get_driver().config
 # 读取配置
 # -》无需修改代码文件，请在“.env”文件中改。《-
@@ -100,9 +101,7 @@ config = nonebot.get_driver().config
 # bilipush_maximum_send=5
 #
 # 配置10：
-# Debug
-# 显示数据进行debug，默认关闭
-# bilipush_debug=True
+# DebugLog
 #
 # 配置11：
 # 推送样式配置
@@ -174,10 +173,7 @@ try:
 except Exception as e:
     maximum_send = 5
 # 配置10：
-try:
-    debug_log = config.bilipush_debug
-except Exception as e:
-    debug_log = False
+# debug_log
 # 配置11：
 try:
     push_style = config.bilipush_push_style
@@ -236,31 +232,31 @@ __plugin_meta__ = PluginMetadata(
 
 # 创建基础参数
 returnpath = ""
-plugin_dbpath = basepath + 'db/bili_push/'
-if not os.path.exists(plugin_dbpath):
-    os.makedirs(plugin_dbpath)
-livedb = plugin_dbpath + "bili_push.db"
-heartdb = plugin_dbpath + "heart.db"
+if not os.path.exists(f"{basepath}db/bili_push/"):
+    os.makedirs(f"{basepath}db/bili_push/")
+livedb = f"{basepath}db/bili_push/bili_push.db"
+heartdb = f"{basepath}db/bili_push/heart.db"
 
 
 def plugin_config(config_name: str, groupcode: str):
     """
     读取群配置，如不存在则读取全局配置
+    config[groupcode][config_name] = config_data
     :param config_name: 获取的配置名称
     :param groupcode: 所在群号
     :return: 配置内容
     """
-    path = plugin_dbpath + "group_config.toml"
+    path = f"{basepath}db/bili_push/group_config.toml"
 
     # 保存配置
     def save_config():
-        with open(path, 'w') as config_file:
+        with open(path, 'w', encoding="utf-8") as config_file:
             toml.dump(config, config_file)
 
     # 如不存在配置文件，则新建一个
     if not os.path.exists(path):
         config = {"Group_Config":
-                      {"nonebot_plugin_bili_push": "https://github.com/SuperGuGuGu/nonebot_plugin_bili_push"}
+                    {"nonebot_plugin_bili_push": "https://github.com/SuperGuGuGu/nonebot_plugin_bili_push"}
                   }
         save_config()
         logger.info("未存在群配置文件，正在创建")
@@ -268,33 +264,64 @@ def plugin_config(config_name: str, groupcode: str):
     # 读取配置
     config = toml.load(path)
 
-    # 如果有匹配项，则返回对应设置
     if groupcode in list(config):
         if config_name in list(config[groupcode]):
-            return config[groupcode][config_name]
+            group_config_data = config[groupcode][config_name]
+        else:
+            group_config_data = None
+    else:
+        group_config_data = None
 
-    # 如果无匹配项，则返回全局设置
-    if config_name == "group_admin":
-        return adminqq
+    if config_name == "admin":
+        if group_config_data is None:
+            config_data = adminqq
+        elif "gp" not in groupcode:
+            config_data = group_config_data
+            for qq in adminqq:
+                config_data.appeng(qq)
+        else:
+            config_data = adminqq
+
+    elif config_name == "bilipush_botswift":
+        if group_config_data is not None:
+            config_data = group_config_data
+        else:
+            config_data = config_botswift
+
+    elif config_name == "group_command_starts":
+        if group_config_data is not None:
+            config_data = group_config_data
+        else:
+            config_data = command_starts
+
     elif config_name == "bilipush_push_style":
-        return push_style
+        if group_config_data is not None:
+            config_data = group_config_data
+        else:
+            config_data = push_style
+
     elif config_name == "at_all":
-        return  False
-    elif config_name == "command_starts":
-        return  command_starts
+        if group_config_data is not None:
+            config_data = group_config_data
+        else:
+            config_data = False
+
     elif config_name == "none":
-        pass
+        config_data = None
     elif config_name == "none":
-        pass
+        config_data = None
     elif config_name == "none":
-        pass
+        config_data = None
     elif config_name == "none":
-        pass
+        config_data = None
     elif config_name == "none":
-        pass
+        config_data = None
     elif config_name == "none":
-        pass
-    return None
+        config_data = None
+    else:
+        config_data = None
+
+    return config_data
 
 
 def get_file_path(file_name):
@@ -731,6 +758,7 @@ def get_draw(data, only_info: bool = False):
                     image = Image.new("RGBA", (x + 50, y), (0, 0, 0, 0))
                     image.paste(paste_image, (50, 0), mask=paste_image)
                 return image
+
             # 绘制头像名称等信息
             image = Image.new("RGBA", (900, 230), (0, 0, 0, 0))
             draw = ImageDraw.Draw(image)
@@ -2025,36 +2053,16 @@ get_new = on_command("最新动态", aliases={'添加订阅', '删除订阅', '�
 
 @get_new.handle()
 async def bili_push_command(bot: Bot, messageevent: MessageEvent):
-    logger.info("bili_push_command_1.0.0")
+    logger.info("bili_push_command_1.0.2")
     botid = str(bot.self_id)
     bot_type = nonebot.get_bot(botid).type
     if bot_type != "OneBot V11":
         logger.error("暂不支持的适配器")
         await get_new.finish(MessageSegment.text("暂不支持的适配器"))
     returnpath = ""
-    message = ""
+    message = " "
     code = 0
     qq = messageevent.get_user_id()
-    msg = messageevent.get_message()
-    msg = re.sub(u"\\[.*?]", "", str(msg))
-    commands = []
-    if ' ' in msg:
-        messages = msg.split(' ', 1)
-        for command in messages:
-            commands.append(command)
-    else:
-        commands.append(msg)
-
-    command = str(commands[0])
-    for command_start in command_starts:
-        if commands != "":
-            if command.startswith(command_start):
-                command = command.removeprefix(command_start)
-    command = command.removeprefix("/")
-    if len(commands) >= 2:
-        command2 = commands[1]
-    else:
-        command2 = ''
     if isinstance(messageevent, GroupMessageEvent):
         # 群消息才有群号
         groupcode = messageevent.group_id
@@ -2072,14 +2080,29 @@ async def bili_push_command(bot: Bot, messageevent: MessageEvent):
         groupcode = 'p' + str(groupcode)
         info_premission = '10'
     groupcode = "g" + groupcode
+    msg = messageevent.get_message()
+    msg = re.sub(u"\\[.*?]", "", str(msg))
+    commands = []
+    if ' ' in msg:
+        messages = msg.split(' ', 1)
+        for command in messages:
+            commands.append(command)
+    else:
+        commands.append(msg)
+    command = str(commands[0])
+    for command_start in plugin_config("group_command_starts", groupcode):
+        if commands != "":
+            if command.startswith(command_start):
+                command = command.removeprefix(command_start)
+    command = command.removeprefix("/")
+    if len(commands) >= 2:
+        command2 = commands[1]
+    else:
+        command2 = ''
 
-    import time
-    date = str(time.strftime("%Y-%m-%d", time.localtime()))
     date_year = str(time.strftime("%Y", time.localtime()))
     date_month = str(time.strftime("%m", time.localtime()))
     date_day = str(time.strftime("%d", time.localtime()))
-    timenow = str(time.strftime("%H-%M-%S", time.localtime()))
-    dateshort = date_year + date_month + date_day
     cachepath = basepath + f"cache/draw/{date_year}/{date_month}/{date_day}/"
 
     # 新建数据库
@@ -2145,7 +2168,7 @@ async def bili_push_command(bot: Bot, messageevent: MessageEvent):
                     message_images = draw_info["message_images"]
 
                     num = 10
-                    cache_push_style = push_style
+                    cache_push_style = plugin_config("bilipush_push_style", groupcode)
                     msg = MessageSegment.text("")
                     while num > 0:
                         num -= 1
@@ -2185,7 +2208,7 @@ async def bili_push_command(bot: Bot, messageevent: MessageEvent):
                 code = 1
                 message = "获取动态失败"
     elif command == "添加订阅":
-        if qq in adminqq:
+        if qq in plugin_config("admin", groupcode):
             logger.info("command:添加订阅")
             code = 0
             if "UID:" in command2:
@@ -2272,7 +2295,7 @@ async def bili_push_command(bot: Bot, messageevent: MessageEvent):
             code = 1
             message = "您无权限操作哦"
     elif command == "删除订阅":
-        if qq in adminqq:
+        if qq in plugin_config("admin", groupcode):
             logger.info("command:删除订阅")
             code = 0
             if "UID:" in command2:
@@ -2351,15 +2374,15 @@ async def bili_push_command(bot: Bot, messageevent: MessageEvent):
     else:
         await get_new.finish()
 
+
 minute = "*/" + waittime
 
 
 @scheduler.scheduled_job("cron", minute=minute, id="job_0")
 async def run_bili_push():
-    logger.info("bili_push_1.0.0")
+    logger.info("bili_push_1.0.2")
     # ############开始自动运行插件############
     now_maximum_send = maximum_send
-    import time
     date = str(time.strftime("%Y-%m-%d", time.localtime()))
     date_year = str(time.strftime("%Y", time.localtime()))
     date_month = str(time.strftime("%m", time.localtime()))
@@ -2652,7 +2675,7 @@ async def run_bili_push():
                     uid = str(subscription[2])
                     # 判断是否本bot以及是否主bot
                     send = True
-                    if config_botswift:
+                    if plugin_config("bilipush_botswift", groupcode):
                         # 读取主bot
                         send = False
 
@@ -2718,18 +2741,20 @@ async def run_bili_push():
                                     conn.close()
                         if send is False:
                             logger.info("该订阅由另一个bot进行推送，本bot将不发送消息")
-                    if "p" in groupcode:
-                        groupcode = groupcode.removeprefix("gp")
-                        if groupcode not in friendlist:
-                            send = False
-                        groupcode = "gp" + groupcode
-                    else:
-                        groupcode = groupcode.removeprefix("g")
-                        if groupcode not in grouplist:
-                            send = False
-                        groupcode = "g" + groupcode
 
-                    if send:
+                    # 检查是否是好友、是否入群
+                    if "p" in groupcode:
+                        if groupcode[2:] not in friendlist:
+                            send = False
+                    else:
+                        if groupcode[1:] not in grouplist:
+                            send = False
+
+                    # 检查是否不推送动态或直播
+                    if uid in plugin_config("ignore_live_list", groupcode):
+                        send = False
+
+                    if send is True:
                         # 缓存文件，存储待发送动态 如果文件不存在，会自动在当前目录中创建
                         conn = sqlite3.connect(livedb)
                         cursor = conn.cursor()
@@ -2781,7 +2806,7 @@ async def run_bili_push():
                                     # 0下播 1直播 2轮播
                                     if state == "1":
                                         num = 10
-                                        cache_push_style = push_style
+                                        cache_push_style = plugin_config("bilipush_push_style", groupcode)
                                         msg = MessageSegment.text("")
                                         while num > 0:
                                             num -= 1
@@ -2842,8 +2867,9 @@ async def run_bili_push():
                                                     conn.close()
 
                                                 except Exception as e:
-                                                    logger.error(f'私聊内容发送失败：send_qq：{send_qq},message:{message},'
-                                                                 f'retrnpath:{returnpath}')
+                                                    logger.error(
+                                                        f'私聊内容发送失败：send_qq：{send_qq},message:{message},'
+                                                        f'retrnpath:{returnpath}')
                                             else:
                                                 logger.info("bot未入群")
 
@@ -2901,7 +2927,7 @@ async def run_bili_push():
                     uid = str(subscription[2])
                     # 判断是否本bot以及是否主bot
                     send = True
-                    if config_botswift:
+                    if plugin_config("bilipush_botswift", groupcode):
                         # 读取主bot
                         send = False
 
@@ -2966,16 +2992,17 @@ async def run_bili_push():
                                     conn.commit()
                                     conn.close()
 
+                    # 检查是否是好友、是否入群
                     if "p" in groupcode:
-                        groupcode = groupcode.removeprefix("gp")
-                        if groupcode not in friendlist:
+                        if groupcode[2:] not in friendlist:
                             send = False
-                        groupcode = "gp" + groupcode
                     else:
-                        groupcode = groupcode.removeprefix("g")
-                        if groupcode not in grouplist:
+                        if groupcode[1:] not in grouplist:
                             send = False
-                        groupcode = "g" + groupcode
+
+                    # 检查是否不推送动态或直播
+                    if uid in plugin_config("ignore_dynamic_list", groupcode):
+                        send = False
 
                     if send:
                         conn = sqlite3.connect(livedb)
@@ -3052,7 +3079,7 @@ async def run_bili_push():
                             message_images = json.loads(message_images)["images"]
 
                             num = 10
-                            cache_push_style = push_style
+                            cache_push_style = plugin_config("bilipush_push_style", groupcode)
                             msg = MessageSegment.text("")
                             while num > 0:
                                 num -= 1

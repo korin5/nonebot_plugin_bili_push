@@ -57,17 +57,33 @@ bilipush_emojiapi=True
 bilipush_apiurl="http://cdn.kanon.ink"
 ```
 
-## 群内配置项（beta）
-
-（正在内测功能，并未正式上线
+## 群内配置项
 
 ```markup
 # 设置的群号
+# 注意：需要在群号前面添加字母g
 [g123456789]
-# 配置项。如不存在则按照默认配置
+
+# 群内插件管理员。可以用于"增减管理员"命令以外的所有命令。
 group_admin=["123456", "111111", "222222"]
-# 配置项。如不存在则按照默认配置
+
+# 只响应一个 bot功能。默认关闭
+bilipush_botswift=false
+
+# 群内命令前缀。配置后将忽略全局配置。
+group_command_starts=["/"]
+
+# 群内推送样式。
 bilipush_push_style="[绘图][标题][链接]"
+
 # at所有成员。默认关闭
-at_all=False
+at_all=false
+
+# 群内忽略直播推送列表
+# 配置后将忽略以下uid的直播推送
+ignore_live_list=["2", "111111", "222222"]
+
+# 群内忽略动态推送列表
+# 配置后将忽略以下uid的动态推送
+ignore_dynamic_list=["2", "111111", "222222"]
 ```
