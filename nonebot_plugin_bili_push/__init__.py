@@ -2828,7 +2828,6 @@ async def run_bili_push():
                                                 msg += cache_msg
                                                 cache_push_style = cache_push_style.removeprefix("[内容]")
                                             elif cache_push_style.startswith("[图片]"):
-
                                                 cache_push_style = cache_push_style.removeprefix("[图片]")
                                             elif cache_push_style == "":
                                                 num = 0
@@ -2836,6 +2835,15 @@ async def run_bili_push():
                                                 logger.error("读取动态推送样式出错，请检查配置是否正确")
                                     else:
                                         msg = MessageSegment.text(biliname + "已下播")
+
+                                    # 检测是否需要at全体成员
+                                    if plugin_config("at_all", groupcode) is True and "p" not in groupcode:
+                                        can_at_all = int((await nonebot.get_bot(botid).get_group_at_all_remain(
+                                            group_id=int(groupcode[1:])))["remain_at_all_count_for_uin"])
+                                        if can_at_all > 0:
+                                            pass
+                                            # 代码需要验证
+                                            # msg = MessageSegment.at(0) + msg
 
                                     stime = random.randint(1, 200) / 10 + sleeptime
 
@@ -2872,7 +2880,6 @@ async def run_bili_push():
                                                         f'retrnpath:{returnpath}')
                                             else:
                                                 logger.info("bot未入群")
-
                                         else:
                                             send_groupcode = groupcode.removeprefix("g")
                                             if send_groupcode in grouplist:
