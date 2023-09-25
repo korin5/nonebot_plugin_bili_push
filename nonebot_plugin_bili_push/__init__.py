@@ -310,7 +310,15 @@ def get_file_path(file_name):
     if not os.path.exists(file_path):
         # 如果文件未缓存，则缓存下来
         logger.info("正在下载" + file_name)
-        url = apiurl + "/file/" + file_name
+        if use_api is True:
+            url = apiurl + "/file/" + file_name
+        else:
+            if file_name == "NotoSansSC[wght].ttf":
+                url = "https://raw.githubusercontent.com/google/fonts/main/ofl/notosanssc/NotoSansSC%5Bwght%5D.ttf"
+            elif file_name == "":
+                url = ""
+            else:
+                url = ""
         connect_api(type="file", url=url, file_path=file_path)
     return file_path
 
@@ -361,7 +369,7 @@ def draw_text(texts: str,
             os.makedirs(cachepath)
         cachepath = cachepath + emoji + ".png"
         if not os.path.exists(cachepath):
-            if use_api:
+            if use_api is True:
                 url = apiurl + "/api/emoji?imageid=" + emoji
                 try:
                     return_image = requests.get(url)
@@ -383,33 +391,32 @@ def draw_text(texts: str,
         return return_image
 
     def is_emoji(emoji):
-        if not use_api:
+        if use_api is not True:
             return False
-        try:
-            conn = sqlite3.connect(get_file_path("emoji_1.db"))
-            cursor = conn.cursor()
-            cursor.execute('select * from emoji where emoji = "' + emoji + '"')
-            data = cursor.fetchone()
-            cursor.close()
-            conn.close()
-            if data is not None:
-                return True
-            else:
+        else:
+            try:
+                print("print")
+                conn = sqlite3.connect(get_file_path("emoji_1.db"))
+                cursor = conn.cursor()
+                cursor.execute('select * from emoji where emoji = "' + emoji + '"')
+                data = cursor.fetchone()
+                cursor.close()
+                conn.close()
+                if data is not None:
+                    return True
+                else:
+                    return False
+            except Exception as e:
                 return False
-        except Exception as e:
-            return False
 
     fortsize = size
-    if use_api:
+    if use_api is True:
         if fontfile == "":
-            try:
-                # 尝试获取字体，获取不到就用默认字体
-                fontfile = get_file_path("腾祥嘉丽中圆.ttf")
-            except Exception as e:
-                fontfile = None
-        font = ImageFont.truetype(font=fontfile, size=fortsize)
+            fontfile = get_file_path("腾祥嘉丽中圆.ttf")
     else:
-        font = None
+        fontfile = get_file_path("NotoSansSC[wght].ttf")
+    font = ImageFont.truetype(font=fontfile, size=fortsize)
+
     # 计算图片尺寸
     print_x = 0
     print_y = 0
@@ -676,11 +683,11 @@ def get_draw(data, only_info: bool = False):
     except Exception as e:
         emoji_infos = []
     fortsize = 30
-    try:
-        # 尝试获取字体，获取不到就用默认字体
+
+    if use_api is True:
         fontfile = get_file_path("腾祥嘉丽中圆.ttf")
-    except Exception as e:
-        fontfile = None
+    else:
+        fontfile = get_file_path("NotoSansSC[wght].ttf")
     font = ImageFont.truetype(font=fontfile, size=fortsize)
 
     try:
@@ -708,12 +715,13 @@ def get_draw(data, only_info: bool = False):
                 if is_fan == 1:
                     draw = ImageDraw.Draw(image)
                     cache_fortsize = 36
-                    try:
-                        # 尝试获取字体，获取不到就用默认字体
+
+                    if use_api is True:
                         fontfile = get_file_path("farout2.ttf")
-                    except Exception as e:
-                        fontfile = None
-                    font = ImageFont.truetype(font=fontfile, size=cache_fortsize)
+                    else:
+                        fontfile = get_file_path("NotoSansSC[wght].ttf")
+                    font = ImageFont.truetype(font=fontfile, size=fortsize)
+
                     fan_number = str(fan_number)
                     while len(fan_number) < 6:
                         fan_number = "0" + fan_number
@@ -2017,7 +2025,7 @@ get_new = on_command("最新动态", aliases={'添加订阅', '删除订阅', '�
 
 @get_new.handle()
 async def bili_push_command(bot: Bot, messageevent: MessageEvent):
-    logger.info("bili_push_command_0.1.37.2")
+    logger.info("bili_push_command_1.0.0")
     botid = str(bot.self_id)
     bot_type = nonebot.get_bot(botid).type
     if bot_type != "OneBot V11":
@@ -2348,7 +2356,7 @@ minute = "*/" + waittime
 
 @scheduler.scheduled_job("cron", minute=minute, id="job_0")
 async def run_bili_push():
-    logger.info("bili_push_0.1.37.2")
+    logger.info("bili_push_1.0.0")
     # ############开始自动运行插件############
     now_maximum_send = maximum_send
     import time
@@ -2501,11 +2509,11 @@ async def run_bili_push():
         if run:
             logger.info('---------获取更新的直播----------')
             fortsize = 30
-            try:
-                # 尝试获取字体，获取不到就用默认字体
+
+            if use_api is True:
                 fontfile = get_file_path("腾祥嘉丽中圆.ttf")
-            except Exception as e:
-                fontfile = None
+            else:
+                fontfile = get_file_path("NotoSansSC[wght].ttf")
             font = ImageFont.truetype(font=fontfile, size=fortsize)
             logger.info("获取订阅列表")
 
