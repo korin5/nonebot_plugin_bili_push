@@ -76,7 +76,7 @@ group_command_starts=["/"]
 # 群内推送样式。
 bilipush_push_style="[绘图][标题][链接]"
 
-# at所有成员。默认关闭
+# at所有成员。默认关闭（未上线功能，开启不会有任何效果）
 at_all=false
 
 # 群内忽略直播推送列表
