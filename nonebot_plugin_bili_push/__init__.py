@@ -306,10 +306,18 @@ def plugin_config(config_name: str, groupcode: str):
         else:
             config_data = False
 
-    elif config_name == "none":
-        config_data = None
-    elif config_name == "none":
-        config_data = None
+    elif config_name == "ignore_live_list":
+        if group_config_data is not None:
+            config_data = group_config_data
+        else:
+            config_data = []
+
+    elif config_name == "ignore_dynamic_list":
+        if group_config_data is not None:
+            config_data = group_config_data
+        else:
+            config_data = []
+
     elif config_name == "none":
         config_data = None
     elif config_name == "none":
