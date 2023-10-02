@@ -40,7 +40,7 @@ bilipush_maximum_send=5
 > 只响应一个 bot 一个群内有多个 bot，可以只让 1 个 bot 推送消息。 默认为关闭该功能，既所有 bot 都会响应 （正在考虑是否改为默认开启，如不需要请关闭该功能）
 
 ```markup
-bilipush_botswift=False
+bilipush_botswift=false
 ```
 
 > 是否使用花音的 api 来支持更丰富的内容
@@ -48,7 +48,7 @@ bilipush_botswift=False
 > 默认开启。如出现连接不上或其他故障，请尝试关闭。
 
 ```markup
-bilipush_emojiapi=True
+bilipush_emojiapi=true
 ```
 
 > 配置 api 地址，如未填写则使用默认地址。
