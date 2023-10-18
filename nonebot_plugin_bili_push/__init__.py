@@ -1,7 +1,7 @@
 import io
 import shutil
 import asyncio
-from .adapter import Bot, MessageEvent, GroupMessageEvent, MessageSegment
+from nonebot.adapters.onebot.v11 import Bot, MessageEvent, GroupMessageEvent, MessageSegment
 from nonebot import require, on_command, logger
 from nonebot.plugin import PluginMetadata
 import nonebot
@@ -225,7 +225,7 @@ __plugin_meta__ = PluginMetadata(
     # 发布必填，当前有效类型有：`library`（为其他插件编写提供功能），`application`（向机器人用户提供功能）。
     homepage="https://github.com/SuperGuGuGu/nonebot_plugin_bili_push",
     # 发布必填。
-    supported_adapters={"~onebot.v11", "~red"},
+    supported_adapters={"~onebot.v11"},
     # 支持的适配器集合，其中 `~` 在此处代表前缀 `nonebot.adapters.`，其余适配器亦按此格式填写。
     # 若插件可以保证兼容所有适配器（即仅使用基本适配器功能）可不填写，否则应该列出插件支持的适配器。
 )
@@ -2063,37 +2063,25 @@ get_new = on_command("最新动态", aliases={'添加订阅', '删除订阅', '�
 
 @get_new.handle()
 async def bili_push_command(bot: Bot, messageevent: MessageEvent):
-    logger.info("bili_push_command_1.1.1")
+    logger.info("bili_push_command_1.1.4")
     botid = str(bot.self_id)
     bot_type = nonebot.get_bot(botid).type
-    adapters = ["OneBot V11", "RedProtocol"]
-    if bot_type not in adapters:
+    if bot_type != "OneBot V11":
         logger.error("暂不支持的适配器")
         await get_new.finish(MessageSegment.text("暂不支持的适配器"))
     returnpath = "None"
     message = " "
     code = 0
     qq = messageevent.get_user_id()
-
-    if bot_type == "OneBot V11":
-        if isinstance(messageevent, GroupMessageEvent):
-            # 群消息才有群号
-            groupcode = messageevent.group_id
-            groupcode = str(groupcode)
-        else:
-            # 这是用户qq号
-            groupcode = messageevent.get_user_id()
-            groupcode = 'p' + str(groupcode)
-        groupcode = "g" + groupcode
-    elif bot_type == "RedProtocol":
-        groupcode = str(messageevent.get_session_id())
-        groupcode = groupcode.split("_")[0]
-        if groupcode == qq:
-            groupcode = 'p' + groupcode
-        groupcode = 'g' + groupcode
+    if isinstance(messageevent, GroupMessageEvent):
+        # 群消息才有群号
+        groupcode = messageevent.group_id
+        groupcode = str(groupcode)
     else:
-        groupcode = "g10000"
-
+        # 这是用户qq号
+        groupcode = messageevent.get_user_id()
+        groupcode = 'p' + str(groupcode)
+    groupcode = "g" + groupcode
     msg = messageevent.get_message()
     msg = re.sub(u"\\[.*?]", "", str(msg))
     commands = []
@@ -2402,7 +2390,7 @@ minute = "*/" + waittime
 
 @scheduler.scheduled_job("cron", minute=minute, id="job_0")
 async def run_bili_push():
-    logger.info("bili_push_1.1.1")
+    logger.info("bili_push_1.1.4")
     # ############开始自动运行插件############
     now_maximum_send = maximum_send
     date = str(time.strftime("%Y-%m-%d", time.localtime()))
@@ -2417,31 +2405,20 @@ async def run_bili_push():
     botids = list(nonebot.get_bots())
     for botid in botids:
         bot_type = nonebot.get_bot(botid).type
-        bot_type_list = ["OneBot V11", "RedProtocol"]
-        if bot_type not in bot_type_list:
+        if bot_type != "OneBot V11":
             logger.info("暂不支持的适配器类型")
             continue
         botid = str(botid)
 
         friendlist = []
         grouplist = []
-        if bot_type == "OneBot V11":
-            friends = await nonebot.get_bot(botid).get_friend_list()
-            for friendinfo in friends:
-                friendlist.append(str(friendinfo["user_id"]))
+        friends = await nonebot.get_bot(botid).get_friend_list()
+        for friendinfo in friends:
+            friendlist.append(str(friendinfo["user_id"]))
 
-            groups = await nonebot.get_bot(botid).get_group_list()
-            for memberinfo in groups:
-                grouplist.append(str(memberinfo["group_id"]))
-        else:
-            friends = await nonebot.get_bot(botid).call_api("get_friends")
-            for friendinfo in list(friends):
-                friendlist.append(str(friendinfo["uin"]))
-
-            groups = await nonebot.get_bot(botid).call_api("get_groups")
-            for memberinfo in list(groups):
-                grouplist.append(str(memberinfo["groupCode"]))
-
+        groups = await nonebot.get_bot(botid).get_group_list()
+        for memberinfo in groups:
+            grouplist.append(str(memberinfo["group_id"]))
 
         # 新建数据库
         # 读取数据库列表
@@ -2499,18 +2476,14 @@ async def run_bili_push():
                 for subscription in subscriptions:
                     uid = str(subscription[2])
                     groupcode = subscription[1]
-                    if bot_type == "OneBot V11":
-                        if "p" in groupcode:
-                            if groupcode[2:] in friendlist:
-                                if uid not in subscriptionlist:
-                                    subscriptionlist.append(uid)
-                        else:
-                            if groupcode[1:] in grouplist:
-                                if uid not in subscriptionlist:
-                                    subscriptionlist.append(uid)
+                    if "p" in groupcode:
+                        if groupcode[2:] in friendlist:
+                            if uid not in subscriptionlist:
+                                subscriptionlist.append(uid)
                     else:
-                        if uid not in subscriptionlist:
-                            subscriptionlist.append(uid)
+                        if groupcode[1:] in grouplist:
+                            if uid not in subscriptionlist:
+                                subscriptionlist.append(uid)
 
                 for uid in subscriptionlist:
                     logger.info(f"开始获取信息-{uid}")
@@ -2874,8 +2847,7 @@ async def run_bili_push():
                                         msg = MessageSegment.text(biliname + "已下播")
 
                                     # 检测是否需要at全体成员
-                                    if (plugin_config("at_all", groupcode) is True and
-                                            "p" not in groupcode and bot_type == "RedProtocol"):
+                                    if plugin_config("at_all", groupcode) is True and "p" not in groupcode:
                                         can_at_all = int((await nonebot.get_bot(botid).get_group_at_all_remain(
                                             group_id=int(groupcode[1:])))["remain_at_all_count_for_uin"])
                                         if can_at_all > 0:
@@ -2893,23 +2865,14 @@ async def run_bili_push():
                                                 try:
                                                     if new_push is not True:
                                                         now_maximum_send -= 1
-                                                        if bot_type == "OneBot V11":
-                                                            await nonebot.get_bot(botid).send_private_msg(
-                                                                user_id=send_qq, message=msg)
-                                                        elif bot_type == "RedProtocol":
-                                                            await nonebot.get_bot(botid).send_friend_message(
-                                                                target=send_qq, message=msg)
-
+                                                        await nonebot.get_bot(botid).send_private_msg(user_id=send_qq,
+                                                                                                      message=msg)
                                                         logger.info("发送私聊成功")
                                                         await asyncio.sleep(stime)
                                                     if new_push is True and state != "0":  # 第一次推送且是下播时不推送
                                                         now_maximum_send -= 1
-                                                        if bot_type == "OneBot V11":
-                                                            await nonebot.get_bot(botid).send_private_msg(
-                                                                user_id=send_qq, message=msg)
-                                                        elif bot_type == "RedProtocol":
-                                                            await nonebot.get_bot(botid).send_friend_message(
-                                                                target=send_qq, message=msg)
+                                                        await nonebot.get_bot(botid).send_private_msg(user_id=send_qq,
+                                                                                                      message=msg)
                                                         logger.info("发送私聊成功")
                                                         await asyncio.sleep(stime)
                                                     conn = sqlite3.connect(livedb)
@@ -2934,26 +2897,16 @@ async def run_bili_push():
                                                 try:
                                                     if new_push is not True:  # 第一次推送且是下播时不推送
                                                         now_maximum_send -= 1
-                                                        if bot_type == "OneBot V11":
-                                                            await nonebot.get_bot(botid).send_group_msg(
-                                                                group_id=send_groupcode,
-                                                                message=msg)
-                                                        elif bot_type == "RedProtocol":
-                                                            print("pinggggggg")
-                                                            await nonebot.get_bot(botid).send_message(
-                                                                chat_type=2, target=int(send_groupcode), message=msg)
+                                                        await nonebot.get_bot(botid).send_group_msg(
+                                                            group_id=send_groupcode,
+                                                            message=msg)
                                                         logger.info("发送群聊成功")
                                                         await asyncio.sleep(stime)
                                                     if new_push is True and state != "0":  # 第一次推送且是下播时不推送
                                                         now_maximum_send -= 1
-                                                        if bot_type == "OneBot V11":
-                                                            await nonebot.get_bot(botid).send_group_msg(
-                                                                group_id=send_groupcode,
-                                                                message=msg)
-                                                        elif bot_type == "RedProtocol":
-                                                            await nonebot.get_bot(botid).send_group_message(
-                                                                target=send_groupcode,
-                                                                message=msg)
+                                                        await nonebot.get_bot(botid).send_group_msg(
+                                                            group_id=send_groupcode,
+                                                            message=msg)
                                                         logger.info("发送群聊成功")
                                                         await asyncio.sleep(stime)
                                                     conn = sqlite3.connect(livedb)
@@ -3191,12 +3144,7 @@ async def run_bili_push():
                                 if send_qq in friendlist:
                                     # bot已添加好友，发送消息
                                     try:
-                                        logger.info("开始发送私聊")
-                                        if bot_type == "OneBot V11":
-                                            await nonebot.get_bot(botid).send_private_msg(user_id=send_qq, message=msg)
-                                        elif bot_type == "RedProtocol":
-                                            await nonebot.get_bot(botid).send_friend_message(target=int(send_qq), message=msg)
-
+                                        await nonebot.get_bot(botid).send_private_msg(user_id=send_qq, message=msg)
                                         conn = sqlite3.connect(livedb)
                                         cursor = conn.cursor()
                                         cursor.execute(
@@ -3217,12 +3165,8 @@ async def run_bili_push():
                                     # bot已添加好友，发送消息
                                     try:
                                         logger.info("开始发送群聊")
-                                        if bot_type == "OneBot V11":
-                                            await nonebot.get_bot(botid).send_group_msg(group_id=send_groupcode,
-                                                                                        message=msg)
-                                        elif bot_type == "RedProtocol":
-                                            await nonebot.get_bot(botid).send_message(
-                                                chat_type=2, target=send_groupcode, message=msg)
+                                        await nonebot.get_bot(botid).send_group_msg(group_id=send_groupcode,
+                                                                                    message=msg)
                                         conn = sqlite3.connect(livedb)
                                         cursor = conn.cursor()
                                         cursor.execute(
