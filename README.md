@@ -2,12 +2,13 @@
 
 B 订阅推送插件
 
-支持 OB11、Red 协议
+支持 OB11 协议
+
+(kook 协议请前往另一个仓库查看-[bili_push for kook](https://github.com/SuperGuGuGu/nonebot_plugin_bili_push/blob/master/Config.md))
 
 ## 示例
 
-![输入图片描述](README_md_files/9cf89890-0952-11ee-8733-25d9c7397331.jpeg?v=1&type=image)
-![输入图片描述](README_md_files/7fd7ee50-0952-11ee-8733-25d9c7397331.jpeg?v=1&type=image)
+![输入图片描述](README_md_files/9cf89890-0952-11ee-8733-25d9c7397331.jpeg?v=1&type=image) ![输入图片描述](README_md_files/7fd7ee50-0952-11ee-8733-25d9c7397331.jpeg?v=1&type=image)
 
 ## 安装
 
@@ -57,6 +58,8 @@ COMMAND_START=["/"]
 
 🔵 接下来：
 
+- [ ] 保存直播推送封面，推送样式修改
+
 - [ ] 配置仅直播推送或仅动态推送（接下来更新）
 
 - [ ] 开播添加 at 全体成员（接下来更新）
@@ -82,8 +85,6 @@ COMMAND_START=["/"]
 - [ ] ~~将请求 api 改为异步（无限期延迟~~
 
 🟢 已完成：
-
-- [x] 对 Red 协议支持
 
 - [x] 对海外服务器支持
 
