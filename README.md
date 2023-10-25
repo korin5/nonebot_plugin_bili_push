@@ -2,9 +2,9 @@
 
 B 订阅推送插件
 
-支持 OB11 协议
+仅支持 OB11 适配器
 
-(kook 协议请前往另一个仓库查看-[bili_push for kook](https://github.com/SuperGuGuGu/nonebot_plugin_bili_push/blob/master/Config.md))
+(kook 适配器请前往另一个仓库查看，但不建议使用-[bili_push for kook](https://github.com/SuperGuGuGu/nonebot_plugin_bili_push/blob/master/Config.md))
 
 ## 示例
 
@@ -86,15 +86,13 @@ COMMAND_START=["/"]
 
 🟢 已完成：
 
-- [x] 对海外服务器支持
+- [x] 修复直播订阅
 
-- [x] 动态获取不到名字，导致关注报错
+- [x] 对海外服务器支持
 
 - [x] 配置推送样式
 
-- [x] 修复文件下载出错导致文件加载报错
-
-- [x] 设置默认字体。在禁用 api 时候使用默认字体
+- [x] 设置默认字体。在禁用 插件 api 的时候使用默认字体
 
 - [x] 单 nb 对接多 q 的兼容
 
