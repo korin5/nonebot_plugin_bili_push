@@ -2202,7 +2202,7 @@ async def bili_push_command(bot: Bot, messageevent: MessageEvent):
                                 image_path = f"{cachepath}{dynamicid}/"
                                 if not os.path.exists(image_path):
                                     os.makedirs(image_path)
-                                image_path = f"{image_path}{num}.png"
+                                image_path += f"{num}.png"
                                 image.save(image_path)
                                 file = open(returnpath, 'br')
                                 io_file = io.BytesIO(file.read())
