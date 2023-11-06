@@ -22,7 +22,6 @@ from nonebot_plugin_apscheduler import scheduler
 
 
 def connect_api(type: str, url: str, post_json=None, file_path: str = None):
-    # 把api调用的代码放在一起，方便下一步进行异步开发
     if type == "json":
         if post_json is None:
             return json.loads(httpx.get(url).text)
@@ -2035,7 +2034,7 @@ get_new = on_command("最新动态", aliases={'添加订阅', '删除订阅', '�
 
 @get_new.handle()
 async def bili_push_command(bot: Bot, messageevent: MessageEvent):
-    logger.info("bili_push_command_1.1.10")
+    logger.info("bili_push_command_1.1.11")
     botid = str(bot.self_id)
     bot_type = nonebot.get_bot(botid).type
     if bot_type != "OneBot V11":
@@ -2455,7 +2454,7 @@ minute = "*/" + waittime
 
 @scheduler.scheduled_job("cron", minute=minute, id="job_0")
 async def run_bili_push():
-    logger.info("bili_push_1.1.10")
+    logger.info("bili_push_1.1.11")
     # ############开始自动运行插件############
     now_maximum_send = maximum_send
     date = str(time.strftime("%Y-%m-%d", time.localtime()))
@@ -2661,24 +2660,33 @@ async def run_bili_push():
                             uid = livedata["uid"]
                             logger.info(f"bili_live_开始获取消息:{uid}")
 
+                            url = f"https://api.vc.bilibili.com/dynamic_svr/v1/dynamic_svr/space_history?host_uid={uid}"
+                            json_data = connect_api("json", url)
+                            if json_data["code"] != 0:
+                                logger.error("bapi连接出错")
+                                return_data = {"user_profile": {"info": {"uname": "name", "face": "None"}}}
+                            else:
+                                return_data = json_data["data"]["cards"][0]["desc"]
+
                             conn = sqlite3.connect(livedb)
                             cursor = conn.cursor()
                             live_status = str(livedata["live_status"])
                             cursor.execute(f"SELECT * FROM livelist3 WHERE uid='{uid}'")
                             data_db = cursor.fetchone()
                             if data_db is None or live_status != str(data_db[1]):
-                                uname = livedata["uname"]
-                                face = livedata["face"]
-                                cover_from_user = livedata["cover_from_user"]
+                                uname = return_data["user_profile"]["info"]["uname"]
+                                face = return_data["user_profile"]["info"]["face"]
+                                cover_from_user = livedata["user_cover"]
                                 keyframe = livedata["keyframe"]
                                 live_title = livedata["title"]
                                 room_id = livedata["room_id"]
 
                                 live_time = livedata["live_time"]
-                                live_time = time.localtime(live_time)
-                                live_time = time.strftime("%Y年%m月%d日 %H:%M:%S", live_time)
+                                # 无需转换
+                                # live_time = time.localtime(live_time)
+                                # live_time = time.strftime("%Y年%m月%d日 %H:%M:%S", live_time)
 
-                                online = livedata["online"]
+                                # online = livedata["online"]
 
                                 if live_status == "1":
                                     logger.info("live开始绘图")
