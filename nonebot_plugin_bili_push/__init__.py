@@ -2034,7 +2034,7 @@ get_new = on_command("最新动态", aliases={'添加订阅', '删除订阅', '�
 
 @get_new.handle()
 async def bili_push_command(bot: Bot, messageevent: MessageEvent):
-    logger.info("bili_push_command_1.1.11")
+    logger.info("bili_push_command_1.1.12")
     botid = str(bot.self_id)
     bot_type = nonebot.get_bot(botid).type
     if bot_type != "OneBot V11":
@@ -2304,13 +2304,11 @@ async def bili_push_command(bot: Bot, messageevent: MessageEvent):
                     returncode = returnjson["code"]
                     if returncode == 0:
                         logger.info('获取动态图片并发送')
-                        # 获取动态id并保存
                         if returnjson["data"]["has_more"] == 1:
                             return_datas = returnjson["data"]["cards"]
 
                             conn = sqlite3.connect(livedb)
                             cursor = conn.cursor()
-                            # 数据库列表转为序列
                             cursor.execute("SELECT * FROM sqlite_master WHERE type='table'")
                             datas = cursor.fetchall()
                             tables = []
@@ -2320,9 +2318,17 @@ async def bili_push_command(bot: Bot, messageevent: MessageEvent):
                             if groupcode not in tables:
                                 cursor.execute(f'create table {groupcode}'
                                                f'(dynamicid int(10) primary key, uid varchar(10))')
+                            # 将新动态保存到数据库中
                             for return_data in return_datas:
                                 dynamicid = str(return_data["desc"]["dynamic_id"])
                                 cursor.execute(f"replace into {groupcode}(dynamicid,uid) values('{dynamicid}','{uid}')")
+                            # 检查数据库中是否有旧动态，更新到群已推送列表中
+                            cursor.execute(f"SELECT * FROM wait_push2 WHERE uid='{uid}'")
+                            datas = cursor.fetchall()
+                            if datas:
+                                for data in datas:
+                                    cursor.execute(
+                                        f"replace into {groupcode}(dynamicid,uid) values('{data[0]}','{data[1]}')")
                             cursor.close()
                             conn.commit()
                             conn.close()
@@ -2454,7 +2460,7 @@ minute = "*/" + waittime
 
 @scheduler.scheduled_job("cron", minute=minute, id="job_0")
 async def run_bili_push():
-    logger.info("bili_push_1.1.11")
+    logger.info("bili_push_1.1.12")
     # ############开始自动运行插件############
     now_maximum_send = maximum_send
     date = str(time.strftime("%Y-%m-%d", time.localtime()))
@@ -2730,7 +2736,7 @@ async def run_bili_push():
                                             paste_image = circle_corner(paste_image, 15)
                                             draw_image.paste(paste_image, (75, 330))
 
-                                    returnpath = os.path.abspath('.') + '/cache/bili动态/'
+                                    returnpath = basepath + '/cache/bili动态/'
                                     if not os.path.exists(returnpath):
                                         os.makedirs(returnpath)
                                     returnpath = f"{returnpath}{date}_{timenow}_{random.randint(1000, 9999)}.png"
