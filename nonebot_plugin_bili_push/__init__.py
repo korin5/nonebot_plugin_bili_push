@@ -22,11 +22,20 @@ from nonebot_plugin_apscheduler import scheduler
 
 
 def connect_api(type: str, url: str, post_json=None, file_path: str = None):
+    h = {
+        "Sec-Ch-Ua": '"Chromium";v="118", "Microsoft Edge";v="118", "Not=A?Brand";v="99"',
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,"
+                  "application/signed-exchange;v=b3;q=0.7",
+        "Accept-Language": "zh-CN,zh;q=0.9",
+        "Cache-Control": "max-age=0",
+        "Accept-Encoding": "gzip, deflate, br",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) "
+                      "Chrome/118.0.0.0 Safari/537.36 Edg/118.0.2088.76"}
     if type == "json":
         if post_json is None:
-            return json.loads(httpx.get(url).text)
+            return json.loads(httpx.get(url, headers=h).text)
         else:
-            return json.loads(httpx.post(url, json=post_json).text)
+            return json.loads(httpx.post(url, json=post_json, headers=h).text)
     elif type == "image":
         if url in ["none", "None"] or url is None:
             image = draw_text("获取图片出错", 50, 10)
@@ -40,7 +49,7 @@ def connect_api(type: str, url: str, post_json=None, file_path: str = None):
         cache_file_path = file_path + "cache"
         try:
             # 这里不能用httpx。用就报错。
-            with open(cache_file_path, "wb") as f, requests.get(url) as res:
+            with open(cache_file_path, "wb") as f, requests.get(url, headers=h) as res:
                 f.write(res.content)
             logger.info("下载完成")
             shutil.copyfile(cache_file_path, file_path)
@@ -50,6 +59,7 @@ def connect_api(type: str, url: str, post_json=None, file_path: str = None):
     return
 
 
+plugin_version = "1.1.13"
 config = nonebot.get_driver().config
 # 读取配置
 # -》无需修改代码文件，请在“.env”文件中改。《-
@@ -2034,7 +2044,7 @@ get_new = on_command("最新动态", aliases={'添加订阅', '删除订阅', '�
 
 @get_new.handle()
 async def bili_push_command(bot: Bot, messageevent: MessageEvent):
-    logger.info("bili_push_command_1.1.12")
+    logger.info(f"bili_push_command_{plugin_version}")
     botid = str(bot.self_id)
     bot_type = nonebot.get_bot(botid).type
     if bot_type != "OneBot V11":
@@ -2460,7 +2470,7 @@ minute = "*/" + waittime
 
 @scheduler.scheduled_job("cron", minute=minute, id="job_0")
 async def run_bili_push():
-    logger.info("bili_push_1.1.12")
+    logger.info(f"bili_push_{plugin_version}")
     # ############开始自动运行插件############
     now_maximum_send = maximum_send
     date = str(time.strftime("%Y-%m-%d", time.localtime()))
