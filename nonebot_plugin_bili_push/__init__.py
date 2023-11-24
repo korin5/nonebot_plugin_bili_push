@@ -20,10 +20,10 @@ import toml
 require("nonebot_plugin_apscheduler")
 from nonebot_plugin_apscheduler import scheduler
 
+plugin_version = "1.1.14"
 
 def connect_api(type: str, url: str, post_json=None, file_path: str = None):
-    h = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) "
+    h = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) "
                       "Chrome/118.0.0.0 Safari/537.36 Edg/118.0.2088.76"}
     if type == "json":
         if post_json is None:
@@ -52,8 +52,6 @@ def connect_api(type: str, url: str, post_json=None, file_path: str = None):
             logger.error(f"文件下载出错-{file_path}")
     return
 
-
-plugin_version = "1.1.13"
 config = nonebot.get_driver().config
 # 读取配置
 # -》无需修改代码文件，请在“.env”文件中改。《-
@@ -191,7 +189,7 @@ try:
 except Exception as e:
     push_style = "[绘图][标题][链接]"
 
-# 插件元信息，让nonebot读取到这个插件是干嘛的
+# 插件元信息
 __plugin_meta__ = PluginMetadata(
     name="bili_push",
     description="推送b站动态",
@@ -199,7 +197,6 @@ __plugin_meta__ = PluginMetadata(
     type="application",
     # 发布必填，当前有效类型有：`library`（为其他插件编写提供功能），`application`（向机器人用户提供功能）。
     homepage="https://github.com/SuperGuGuGu/nonebot_plugin_bili_push",
-    # 发布必填。
     supported_adapters={"~onebot.v11"},
     # 支持的适配器集合，其中 `~` 在此处代表前缀 `nonebot.adapters.`，其余适配器亦按此格式填写。
     # 若插件可以保证兼容所有适配器（即仅使用基本适配器功能）可不填写，否则应该列出插件支持的适配器。
@@ -898,7 +895,7 @@ def get_draw(data, only_info: bool = False):
                                             biliemoji_infos=emoji_infos)
                     draw_image.paste(paste_image, (x, y), mask=paste_image)
                     w, h = paste_image.size
-                    y += h
+                    y += h + 20
                     x = 65
                     # 添加转发内容
                     # 添加转发消息框
@@ -1088,7 +1085,7 @@ def get_draw(data, only_info: bool = False):
                                             biliemoji_infos=emoji_infos)
                     draw_image.paste(paste_image, (x, y), mask=paste_image)
                     w, h = paste_image.size
-                    y += h
+                    y += h + 20
                     x = 65
                     # 添加转发内容
                     # 添加转发消息框
@@ -1238,7 +1235,7 @@ def get_draw(data, only_info: bool = False):
                     draw_image.paste(paste_image, (x, y), mask=paste_image)
                     w, h = paste_image.size
 
-                    y = y + h
+                    y = y + h + 20
                     x = 65
                     # 添加转发内容
                     # 添加转发消息框
@@ -1342,7 +1339,7 @@ def get_draw(data, only_info: bool = False):
                                             biliemoji_infos=emoji_infos)
                     draw_image.paste(paste_image, (x, y), mask=paste_image)
                     w, h = paste_image.size
-                    y += h
+                    y += h + 20
                     x = 65
                     # 添加转发内容
                     # 添加转发消息框
@@ -1468,7 +1465,7 @@ def get_draw(data, only_info: bool = False):
                     draw_image.paste(paste_image, (x, y), mask=paste_image)
                     w, h = paste_image.size
 
-                    y = y + h
+                    y = y + h + 20
                     x = 65
                     # 添加转发内容
                     # 添加转发消息框
@@ -1556,7 +1553,7 @@ def get_draw(data, only_info: bool = False):
                     draw_image.paste(paste_image, (x, y), mask=paste_image)
                     w, h = paste_image.size
 
-                    y = y + h
+                    y = y + h + 20
                     x = 65
                     # 添加转发内容
                     # 添加转发消息框
@@ -1685,7 +1682,7 @@ def get_draw(data, only_info: bool = False):
                 w, h = paste_image.size
 
                 x = 65
-                y = 230 + h
+                y = 230 + h + 20
 
                 print_x = -1
                 print_y = 0
@@ -1833,7 +1830,7 @@ def get_draw(data, only_info: bool = False):
                                         calculate=False)
                 draw_image.paste(paste_image, (75, 230), mask=paste_image)
                 w, h = paste_image.size
-                y = 240 + h
+                y = 240 + h + 20
                 x = 65
                 # 添加视频消息边沿
                 paste_image = Image.new("RGB", (776, 204), "#FFFFFF")
