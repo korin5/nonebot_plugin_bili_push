@@ -24,14 +24,14 @@ plugin_version = "1.1.14"
 
 def connect_api(type: str, url: str, post_json=None, file_path: str = None):
     h = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) "
-                      "Chrome/118.0.0.0 Safari/537.36 Edg/118.0.2088.76"}
+                       "Chrome/118.0.0.0 Safari/537.36 Edg/118.0.2088.76"}
     if type == "json":
         if post_json is None:
             return json.loads(httpx.get(url, headers=h).text)
         else:
             return json.loads(httpx.post(url, json=post_json, headers=h).text)
     elif type == "image":
-        if url in ["none", "None"] or url is None:
+        if url in ["none", "None", "", " "] or url is None:
             image = draw_text("获取图片出错", 50, 10)
         else:
             try:
@@ -228,7 +228,7 @@ def plugin_config(config_name: str, groupcode: str):
     # 如不存在配置文件，则新建一个
     if not os.path.exists(path):
         config = {"Group_Config":
-                    {"nonebot_plugin_bili_push": "https://github.com/SuperGuGuGu/nonebot_plugin_bili_push"}
+                      {"nonebot_plugin_bili_push": "https://github.com/SuperGuGuGu/nonebot_plugin_bili_push"}
                   }
         save_config()
         logger.info("未存在群配置文件，正在创建")
@@ -2528,10 +2528,19 @@ async def run_bili_push():
                     liveid = 0
                     cursor.execute(f'replace into subscriptionlist3 ("groupcode","uid","liveid") '
                                    f'values("{data[1]}",{data[2]},{liveid})')
-        if "livelist3" not in tables:
+        if "livelist4" not in tables:
             # 如未创建，则创建
-            cursor.execute('create table livelist3(uid varchar(10) primary key, state varchar(10), '
-                           'draw varchar(10), username varchar(10), message_title varchar(10), room_id varchar(10))')
+            cursor.execute('create table livelist4(uid varchar(10) primary key, state varchar(10), draw varchar(10), '
+                           'username varchar(10), message_title varchar(10), room_id varchar(10), image varchar(10))')
+            if "livelist3" in tables:
+                cursor.execute("SELECT * FROM livelist3")
+                datas = cursor.fetchall()
+                for data in datas:
+                    # 写入数据
+                    cursor.execute(
+                        f'replace into livelist4 (uid, state, draw, username, message_title, room_id, image) '
+                        f'values'
+                        f'("{data[1]}","{data[2]}","{data[3]}","{data[4]}","{data[5]}","{data[6]}","none")')
         if "wait_push2" not in tables:
             cursor.execute(
                 "create table 'wait_push2' (dynamicid int(10) primary key, uid varchar(10), "
@@ -2650,7 +2659,6 @@ async def run_bili_push():
                     liveid = int(subscription[3])
                     if liveid == 0:
                         # 未获取房间号，开始获取房间号
-                        pass
                         if beta_test:
                             print(f"debug:pass uid: {subscription[2]}")
                     if liveid != 0:
@@ -2678,7 +2686,7 @@ async def run_bili_push():
                             conn = sqlite3.connect(livedb)
                             cursor = conn.cursor()
                             live_status = str(livedata["live_status"])
-                            cursor.execute(f"SELECT * FROM livelist3 WHERE uid='{uid}'")
+                            cursor.execute(f"SELECT * FROM livelist4 WHERE uid='{uid}'")
                             data_db = cursor.fetchone()
                             if data_db is None or live_status != str(data_db[1]):
                                 uname = return_data["user_profile"]["info"]["uname"]
@@ -2725,14 +2733,27 @@ async def run_bili_push():
                                     draw.text(xy=(75, 270), text=live_title, fill=(0, 0, 0), font=font)
 
                                     # 添加封面
+                                    cover_path = "none"
                                     if cover_from_user != "":
                                         paste_image = connect_api("image", cover_from_user)
+                                        cover_path = basepath + '/cache/bili动态/'
+                                        if not os.path.exists(cover_path):
+                                            os.makedirs(cover_path)
+                                        cover_path = (f"{cover_path}{date}_{timenow}_cover_"
+                                                      f"{random.randint(1000, 9999)}.png")
+                                        paste_image.save(cover_path)
                                         paste_image = paste_image.resize((772, 434))
                                         paste_image = circle_corner(paste_image, 15)
                                         draw_image.paste(paste_image, (75, 330))
                                     else:
                                         if keyframe != "":
                                             paste_image = connect_api("image", keyframe)
+                                            cover_path = basepath + '/cache/bili动态/'
+                                            if not os.path.exists(cover_path):
+                                                os.makedirs(cover_path)
+                                            cover_path = (f"{cover_path}{date}_{timenow}_cover_"
+                                                          f"{random.randint(1000, 9999)}.png")
+                                            paste_image.save(cover_path)
                                             paste_image = paste_image.resize((772, 434))
                                             paste_image = circle_corner(paste_image, 15)
                                             draw_image.paste(paste_image, (75, 330))
@@ -2745,16 +2766,18 @@ async def run_bili_push():
 
                                     # 写入数据
                                     cursor.execute(
-                                        f'replace into livelist3 (uid, state, draw, username, message_title, room_id) '
-                                        f'values'
-                                        f'("{uid}","{live_status}","{returnpath}","{uname}","{live_title}","{room_id}")')
+                                        f'replace into livelist4 '
+                                        f'(uid, state, draw, username, message_title, room_id, image)'
+                                        f' values("{uid}","{live_status}","{returnpath}","{uname}","{live_title}",'
+                                        f'"{room_id}","{cover_path}")')
 
                                 elif live_status == "0":
                                     message = uname + "已下播"
+                                    # 写入数据
                                     cursor.execute(
-                                        f'replace into livelist3 (uid, state, draw, username, message_title, room_id) '
-                                        f'values'
-                                        f'("{uid}","{live_status}","none","{uname}","{live_title}","{room_id}")')
+                                        f'replace into livelist4 ('
+                                        f'uid, state, draw, username, message_title, room_id, image) values("{uid}",'
+                                        f'"{live_status}","none","{uname}","{live_title}","{room_id}","none")')
                             cursor.close()
                             conn.commit()
                             conn.close()
@@ -2875,7 +2898,7 @@ async def run_bili_push():
                         cursor.execute(f"SELECT * FROM {groupcode} WHERE dynamicid = 'live{uid}'")
                         pushed_datas = cursor.fetchone()
                         # 获取最新动态
-                        cursor.execute(f"SELECT * FROM 'livelist3' WHERE uid = '{uid}'")
+                        cursor.execute(f"SELECT * FROM 'livelist4' WHERE uid = '{uid}'")
                         datas = cursor.fetchone()
                         cursor.close()
                         conn.commit()
@@ -2893,7 +2916,7 @@ async def run_bili_push():
                                 # 推送直播消息，并保存为已推送
                                 conn = sqlite3.connect(livedb)
                                 cursor = conn.cursor()
-                                cursor.execute("SELECT * FROM 'livelist3' WHERE uid = " + uid)
+                                cursor.execute("SELECT * FROM 'livelist4' WHERE uid = " + uid)
                                 data = cursor.fetchone()
                                 cursor.close()
                                 conn.commit()
