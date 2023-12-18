@@ -3242,17 +3242,21 @@ async def run_bili_push():
                                     # bot已添加好友，发送消息
                                     try:
                                         await nonebot.get_bot(botid).send_private_msg(user_id=send_qq, message=msg)
-                                        conn = sqlite3.connect(livedb)
-                                        cursor = conn.cursor()
-                                        cursor.execute(
-                                            "replace into 'gp" + send_qq + "'(dynamicid,uid) values(" + dynamicid + "," + uid + ")")
-                                        cursor.close()
-                                        conn.commit()
-                                        conn.close()
                                         logger.info("发送私聊成功")
                                     except Exception as e:
-                                        logger.error('私聊内容发送失败：send_qq：' + str(send_qq) + ",message:"
-                                                     + message + ",retrnpath:" + draw_path)
+                                        logger.error(f"私聊内容发送失败：send_qq：{send_qq},"
+                                                     f"message:{message},retrnpath:{draw_path}")
+                                    conn = sqlite3.connect(livedb)
+                                    cursor = conn.cursor()
+                                    try:
+                                        cursor.execute(
+                                            f'replace into "gp{send_qq}"(dynamicid,uid) '
+                                            f'values({dynamicid},{uid})')
+                                    except Exception as e:
+                                        logger.error(f"数据库出错：{e}")
+                                    cursor.close()
+                                    conn.commit()
+                                    conn.close()
                                     await asyncio.sleep(stime)
                                 else:
                                     logger.info("bot未入群")
@@ -3261,22 +3265,22 @@ async def run_bili_push():
                                 if send_groupcode in grouplist:
                                     # bot已添加好友，发送消息
                                     try:
-                                        logger.info("开始发送群聊")
-                                        await nonebot.get_bot(botid).send_group_msg(group_id=send_groupcode,
-                                                                                    message=msg)
-                                        conn = sqlite3.connect(livedb)
-                                        cursor = conn.cursor()
-                                        cursor.execute(
-                                            "replace into 'g" + send_groupcode + "'(dynamicid,uid) values(" +
-                                            dynamicid + "," + uid + ")")
-                                        cursor.close()
-                                        conn.commit()
-                                        conn.close()
+                                        await nonebot.get_bot(botid).send_group_msg(group_id=send_groupcode, message=msg)
                                         logger.info("发送群聊成功")
                                     except Exception as e:
-                                        logger.error(
-                                            '群聊内容发送失败：groupcode：' + str(send_groupcode) + ",message:"
-                                            + message + ",retrnpath:" + draw_path)
+                                        logger.error(f"群聊内容发送失败：groupcode：{send_groupcode},"
+                                                     f"message:{message},retrnpath:{draw_path}")
+                                    conn = sqlite3.connect(livedb)
+                                    cursor = conn.cursor()
+                                    try:
+                                        cursor.execute(
+                                            f'replace into "g{send_groupcode}"("dynamicid","uid") '
+                                            f'values("{dynamicid}","{uid}")')
+                                    except Exception as e:
+                                        logger.error(f"数据库出错：{e}")
+                                    cursor.close()
+                                    conn.commit()
+                                    conn.close()
                                     await asyncio.sleep(stime)
                                 else:
                                     logger.info("bot未入群")
