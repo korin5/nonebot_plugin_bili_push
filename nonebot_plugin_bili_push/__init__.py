@@ -20,7 +20,7 @@ import toml
 require("nonebot_plugin_apscheduler")
 from nonebot_plugin_apscheduler import scheduler
 
-plugin_version = "1.1.14"
+plugin_version = "1.1.15"
 
 def connect_api(type: str, url: str, post_json=None, file_path: str = None):
     h = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) "
@@ -2030,7 +2030,7 @@ def get_draw(data, only_info: bool = False):
         }
 
 
-get_new = on_command("最新动态", aliases={'添加订阅', '删除订阅', '查看订阅', '帮助'}, block=False)
+get_new = on_command("最新动态", aliases={'添加订阅', '删除订阅', '查看订阅', 'bilipush帮助'}, block=False)
 
 
 @get_new.handle()
@@ -2430,7 +2430,7 @@ async def bili_push_command(bot: Bot, messageevent: MessageEvent):
             for subscription in subscriptions:
                 uid = str(subscription[2])
                 message += "UID:" + uid + "\n"
-    elif command == "帮助":
+    elif command == "bilipush帮助":
         code = 1
         message = "Bili_Push：\n/添加订阅\n/删除订阅\n/查看订阅\n/最新动态"
 
